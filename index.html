@@ -13,8 +13,8 @@
 :root{
   --snow:#e7eef5;
   --snow-deep:#d9e4ee;
-  --paper:#f8fafc;
-  --paper-veil:rgba(246,249,251,.92);
+  --paper:rgba(251,252,254,.91);
+  --paper-veil:rgba(248,251,253,.74);
   --ink:#2f4356;
   --ink-soft:#647c95;
   --ink-faint:#92a9bd;
@@ -27,6 +27,20 @@
   --blush:#98bbd4;
   --shadow:0 10px 34px rgba(66,104,138,.13);
   --shadow-soft:0 4px 16px rgba(66,104,138,.10);
+  /* 液态玻璃 */
+  --glass-bg:rgba(248,251,253,.74);
+  --glass-bg-soft:rgba(249,252,254,.60);
+  --glass-bg-strong:rgba(252,253,255,.87);
+  --glass-border:rgba(255,255,255,.66);
+  --glass-edge:rgba(255,255,255,.85);
+  --glass-sheen:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.14) 46%,rgba(255,255,255,0) 78%);
+  --glass-sheen-soft:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,.06));
+  --glass-blur:blur(26px) saturate(165%);
+  --glass-blur-sm:blur(14px) saturate(150%);
+  --glass-shadow:0 18px 44px rgba(58,98,134,.16),0 2px 8px rgba(58,98,134,.06);
+  --glass-shadow-sm:inset 0 1px 0 rgba(255,255,255,.7),0 2px 10px rgba(58,98,134,.08);
+  --radius-lg:22px;
+  --radius-md:18px;
   --serif:"Noto Serif SC","Songti SC","STSong",serif;
   --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
   /* 动效令牌：统一节奏，全部只动 transform / opacity 这类合成属性 */
@@ -36,7 +50,7 @@
   --dur-fast:.18s;
   --dur:.26s;
   --dur-slow:.5s;
-  --wallpaper-opacity:.64;
+  --wallpaper-opacity:.58;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
@@ -187,7 +201,7 @@ main{flex:1;min-width:0;padding:48px clamp(34px,4.6vw,96px) 72px}
 /* 标题下面垫一层柔光，背景纹理永远不会压到字上 */
 .view-head::before{
   content:"";position:absolute;left:-34px;right:-34px;top:-26px;bottom:-20px;z-index:-1;border-radius:26px;pointer-events:none;
-  background:radial-gradient(72% 122% at 20% 46%,rgba(255,255,255,.92) 0%,rgba(255,255,255,.6) 48%,rgba(255,255,255,0) 80%);
+  background:radial-gradient(64% 112% at 18% 48%,rgba(250,253,255,.82) 0%,rgba(250,253,255,.44) 52%,rgba(250,253,255,0) 82%);
 }
 body[data-theme="dark"] .view-head::before{
   background:radial-gradient(72% 122% at 20% 46%,rgba(10,22,34,.92) 0%,rgba(10,22,34,.62) 48%,rgba(10,22,34,0) 80%);
@@ -553,15 +567,57 @@ body[data-theme="dark"] .view-head::before{
 .month-table td.m{font-family:var(--serif);color:var(--ice-night);letter-spacing:1px}
 .month-table tr:last-child td{border-bottom:none}
 
+/* ============ 液态玻璃质感 ============ */
+/* 大块表面：强模糊 + 顶部高光 + 柔和投影，文字依旧落在清晰的底上 */
+.sidebar,.panel,.diary-card,.reader,.stat-card,.chart-panel,.heat-panel,.modal-box,.noise-panel,.focus-exit{
+  -webkit-backdrop-filter:var(--glass-blur);
+  backdrop-filter:var(--glass-blur);
+  border-color:var(--glass-border);
+  background-image:var(--glass-sheen);
+  box-shadow:inset 0 1px 0 var(--glass-edge),var(--glass-shadow);
+  border-radius:var(--radius-lg);
+}
+.sidebar{border-radius:0}
+.diary-card,.reader{background-color:var(--paper)}
+.panel,.stat-card,.chart-panel,.heat-panel{background-color:var(--glass-bg)}
+.modal-box{border-radius:26px}
+/* 输入框与药丸控件：轻一档的玻璃 */
+.search-box input,.tag-input,.modal-box input,
+.tag,.btn-ghost,.noise-btn,.cal-nav button,.reader-tools button{
+  -webkit-backdrop-filter:var(--glass-blur-sm);
+  backdrop-filter:var(--glass-blur-sm);
+  background-color:var(--glass-bg-strong);
+  background-image:var(--glass-sheen-soft);
+  border-color:var(--glass-border);
+  box-shadow:var(--glass-shadow-sm);
+}
+/* 数量多的小元素只用半透明+高光，避免几十层模糊拖慢渲染 */
+.tool-btn,.entry-item,.r-tag,.tag-filter .tchip,.ei-tag,.tag-chip{
+  background-color:var(--glass-bg-soft);
+  background-image:var(--glass-sheen-soft);
+  border-color:var(--glass-border);
+}
+.entry-item,.modal-box{border-radius:var(--radius-md)}
+.r-tag,.ei-tag,.tag-chip{border-radius:999px}
+
 /* ============ 夜间模式（雪夜） ============ */
 body[data-theme="dark"]{
   --snow:#0c1926;--snow-deep:#091420;
-  --paper:#111f2e;--paper-veil:rgba(14,27,40,.86);
+  --paper:rgba(17,31,46,.88);--paper-veil:rgba(14,27,40,.72);
   --ink:#dce7f1;--ink-soft:#a6bacb;--ink-faint:#7b93a7;
   --ice:#7ea9c9;--ice-deep:#5f91b8;--ice-night:#a8c9e2;
   --line:#243b52;--line-soft:#1b2f43;
   --lock:#7b93a7;--blush:#7ea9c9;
   --shadow:0 10px 34px rgba(0,0,0,.38);--shadow-soft:0 4px 16px rgba(0,0,0,.3);
+  --glass-bg:rgba(16,30,45,.70);
+  --glass-bg-soft:rgba(16,30,45,.52);
+  --glass-bg-strong:rgba(20,36,52,.84);
+  --glass-border:rgba(150,190,225,.20);
+  --glass-edge:rgba(190,220,245,.14);
+  --glass-sheen:linear-gradient(180deg,rgba(180,215,245,.15),rgba(180,215,245,.04) 46%,rgba(180,215,245,0) 78%);
+  --glass-sheen-soft:linear-gradient(180deg,rgba(180,215,245,.13),rgba(180,215,245,.02));
+  --glass-shadow:0 18px 44px rgba(0,0,0,.46),0 2px 8px rgba(0,0,0,.3);
+  --glass-shadow-sm:inset 0 1px 0 rgba(190,220,245,.12),0 2px 10px rgba(0,0,0,.28);
   background:linear-gradient(168deg,#0a1622 0%,#0c1a29 45%,#091521 100%);
 }
 body[data-theme="dark"] #snowfield{opacity:.5}
@@ -569,7 +625,7 @@ body[data-theme="dark"] ::selection{
   background-color:#26415c;background-image:linear-gradient(135deg,#2b4a68,#1e3550);
   color:#dcebf6;text-shadow:0 0 5px rgba(160,200,230,.35);
 }
-body[data-theme="dark"] .sidebar{background:rgba(10,22,34,.86)}
+body[data-theme="dark"] .sidebar{background-color:rgba(10,22,34,.66)}
 body[data-theme="dark"] .nav-item:hover,
 body[data-theme="dark"] .side-foot button:hover{background:#14293c;color:var(--ice-night)}
 body[data-theme="dark"] .tool-btn:hover{background:#142a3e;color:var(--ice-night)}
