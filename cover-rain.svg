@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="雨夜窗景">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#22374d"/>
+      <stop offset="0.55" stop-color="#152636"/>
+      <stop offset="1" stop-color="#0a1520"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.48" cy="0.42" r="0.78">
+      <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#000000" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.62"/>
+    </radialGradient>
+    <radialGradient id="warm" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd7a1" stop-opacity="0.9"/>
+      <stop offset="0.55" stop-color="#f0b877" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#f0b877" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cool" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#a9d8f7" stop-opacity="0.8"/>
+      <stop offset="0.55" stop-color="#7fb2d8" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#7fb2d8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dropFace" cx="0.36" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#e8f4ff" stop-opacity="0.6"/>
+      <stop offset="0.42" stop-color="#a6c9e6" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#7ba6c8" stop-opacity="0.1"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="soft2" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <clipPath id="round"><circle cx="200" cy="200" r="200"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect width="400" height="400" fill="url(#sky)"/>
+
+    <!-- 窗外城市灯火，被雨水晕开 -->
+    <g filter="url(#soft)">
+      <circle cx="78" cy="286" r="54" fill="url(#warm)"/>
+      <circle cx="132" cy="318" r="38" fill="url(#warm)" opacity="0.8"/>
+      <circle cx="46" cy="336" r="30" fill="url(#warm)" opacity="0.7"/>
+      <circle cx="322" cy="96" r="46" fill="url(#cool)"/>
+      <circle cx="266" cy="60" r="34" fill="url(#cool)" opacity="0.75"/>
+      <circle cx="356" cy="196" r="40" fill="url(#cool)" opacity="0.6"/>
+      <circle cx="210" cy="356" r="44" fill="url(#warm)" opacity="0.55"/>
+    </g>
+
+    <!-- 雨丝 -->
+    <g stroke="#cfe6f7" stroke-linecap="round" fill="none">
+      <path d="M62 6 L48 96" stroke-width="1.3" opacity="0.11"/>
+      <path d="M118 20 L104 118" stroke-width="1.1" opacity="0.09"/>
+      <path d="M176 0 L160 88" stroke-width="1.4" opacity="0.10"/>
+      <path d="M232 30 L216 130" stroke-width="1.2" opacity="0.08"/>
+      <path d="M288 8 L272 104" stroke-width="1.3" opacity="0.11"/>
+      <path d="M344 44 L328 140" stroke-width="1.1" opacity="0.09"/>
+      <path d="M96 210 L82 306" stroke-width="1.2" opacity="0.08"/>
+      <path d="M204 246 L190 348" stroke-width="1.3" opacity="0.09"/>
+      <path d="M312 268 L298 372" stroke-width="1.1" opacity="0.08"/>
+      <path d="M150 158 L138 244" stroke-width="1" opacity="0.07"/>
+      <path d="M258 176 L246 262" stroke-width="1" opacity="0.07"/>
+      <path d="M30 150 L18 232" stroke-width="1" opacity="0.07"/>
+    </g>
+
+    <!-- 玻璃上的水珠 -->
+    <g>
+      <ellipse cx="106" cy="96" rx="7.5" ry="9" fill="url(#dropFace)"/>
+      <ellipse cx="103.4" cy="92.4" rx="2.3" ry="2.7" fill="#ffffff" opacity="0.5"/>
+
+      <ellipse cx="196" cy="62" rx="5.6" ry="6.8" fill="url(#dropFace)"/>
+      <ellipse cx="194" cy="59.4" rx="1.7" ry="2" fill="#ffffff" opacity="0.45"/>
+
+      <ellipse cx="286" cy="132" rx="8.4" ry="10" fill="url(#dropFace)"/>
+      <ellipse cx="283" cy="128" rx="2.6" ry="3" fill="#ffffff" opacity="0.5"/>
+
+      <ellipse cx="62" cy="192" rx="6.2" ry="7.6" fill="url(#dropFace)"/>
+      <ellipse cx="59.8" cy="189" rx="1.9" ry="2.3" fill="#ffffff" opacity="0.45"/>
+
+      <ellipse cx="168" cy="212" rx="9.2" ry="11" fill="url(#dropFace)"/>
+      <ellipse cx="164.6" cy="207.6" rx="2.8" ry="3.3" fill="#ffffff" opacity="0.5"/>
+
+      <ellipse cx="332" cy="242" rx="6.8" ry="8.2" fill="url(#dropFace)"/>
+      <ellipse cx="329.6" cy="238.6" rx="2.1" ry="2.5" fill="#ffffff" opacity="0.45"/>
+
+      <ellipse cx="94" cy="298" rx="7.8" ry="9.4" fill="url(#dropFace)"/>
+      <ellipse cx="91.2" cy="294" rx="2.4" ry="2.8" fill="#ffffff" opacity="0.48"/>
+
+      <ellipse cx="252" cy="326" rx="6.4" ry="7.8" fill="url(#dropFace)"/>
+      <ellipse cx="250" cy="322.8" rx="2" ry="2.4" fill="#ffffff" opacity="0.44"/>
+
+      <ellipse cx="348" cy="76" rx="5.2" ry="6.4" fill="url(#dropFace)"/>
+      <ellipse cx="346.2" cy="73.6" rx="1.6" ry="1.9" fill="#ffffff" opacity="0.42"/>
+
+      <ellipse cx="140" cy="352" rx="5.8" ry="7" fill="url(#dropFace)"/>
+      <ellipse cx="138.2" cy="349.4" rx="1.8" ry="2.1" fill="#ffffff" opacity="0.42"/>
+    </g>
+
+    <!-- 几道滑落的水痕 -->
+    <g fill="none" stroke="#bcd9ef" stroke-linecap="round">
+      <path d="M212 118 C208 150, 206 178, 204 196" stroke-width="3" opacity="0.16"/>
+      <circle cx="204" cy="200" r="3.6" fill="#dcecf9" stroke="none" opacity="0.3"/>
+      <path d="M120 236 C117 262, 115 282, 114 294" stroke-width="2.6" opacity="0.14"/>
+      <circle cx="114" cy="298" r="3.2" fill="#dcecf9" stroke="none" opacity="0.26"/>
+      <path d="M300 176 C297 200, 296 216, 295 226" stroke-width="2.2" opacity="0.12"/>
+      <circle cx="295" cy="229" r="2.8" fill="#dcecf9" stroke="none" opacity="0.24"/>
+    </g>
+
+    <!-- 玻璃内侧的一点雾气 -->
+    <g filter="url(#soft2)" opacity="0.5">
+      <ellipse cx="30" cy="40" rx="70" ry="46" fill="#dcecf9" opacity="0.14"/>
+      <ellipse cx="374" cy="368" rx="78" ry="52" fill="#cfe4f4" opacity="0.12"/>
+    </g>
+
+    <rect width="400" height="400" fill="url(#vignette)"/>
+  </g>
+</svg>

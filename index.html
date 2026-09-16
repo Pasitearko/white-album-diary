@@ -673,26 +673,43 @@ body.focus-mode main{padding:0}
 }
 .noise-btn:hover{border-color:var(--ice);color:var(--ice-night);transform:translateY(-1px)}
 .noise-btn.on{background:#e8f2f9;border-color:var(--ice);color:var(--ice-night)}
-/* 唱片：音乐播放时匀速旋转，暂停时停在当前角度 */
+/* 唱片：播放时匀速旋转，暂停时停在当前角度；点击唱片本身即可暂停/继续 */
 .noise-disc{
   width:52px;height:52px;border-radius:50%;flex-shrink:0;position:relative;overflow:hidden;
-  background:#0d1b29 center/cover no-repeat;
+  background:#0d1b29 center/cover no-repeat;cursor:pointer;
   box-shadow:0 3px 12px rgba(60,100,140,.28),inset 0 0 0 1px rgba(255,255,255,.45);
+  transition:transform var(--dur) var(--ease-out),box-shadow var(--dur) var(--ease-soft);
 }
-.noise-disc img{
-  width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;
+.noise-disc:hover{transform:scale(1.06);box-shadow:0 5px 16px rgba(60,100,140,.36),inset 0 0 0 1px rgba(255,255,255,.6)}
+.noise-disc:active{transform:scale(.98)}
+.disc-cover{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;
+  opacity:0;transition:opacity .45s var(--ease-soft);
   animation:discSpin 16s linear infinite;animation-play-state:paused;
   will-change:transform;user-select:none;-webkit-user-drag:none;
 }
-.noise-disc.spin img{animation-play-state:running}
+.noise-disc[data-cover-active="music"] .disc-cover[data-cover="music"],
+.noise-disc[data-cover-active="rain"] .disc-cover[data-cover="rain"]{opacity:1}
+.noise-disc.spin .disc-cover{animation-play-state:running}
+.disc-veil{
+  position:absolute;inset:0;border-radius:50%;z-index:1;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(9,22,36,.45);color:#eaf3fa;
+  opacity:0;transition:opacity var(--dur) var(--ease-soft);
+}
+.noise-disc:hover .disc-veil,.noise-disc.paused .disc-veil{opacity:1}
+.noise-disc:not(.paused) .g-play{display:none}
+.noise-disc.paused .g-pause{display:none}
 .noise-disc::after{
   content:"";position:absolute;left:50%;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;
   border-radius:50%;background:rgba(255,255,255,.93);border:1px solid rgba(120,160,195,.45);
   box-shadow:inset 0 0 0 3px rgba(150,185,215,.3);
+  z-index:2;transition:opacity var(--dur) var(--ease-soft);
 }
+.noise-disc:hover::after,.noise-disc.paused::after{opacity:0}
 @keyframes discSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){
-  .noise-disc.spin img{animation:none}
+  .noise-disc.spin .disc-cover{animation:none}
 }
 .noise-vol{width:74px;accent-color:var(--ice-deep)}
 .noise-panel audio{display:none}
@@ -1132,15 +1149,21 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
 
 <!-- 白噪音面板 -->
 <div class="noise-panel" id="noisePanel" style="display:none">
-  <div class="noise-disc" id="noiseDisc" title="WHITE ALBUM2 Original Soundtrack 〜introductory〜">
-    <img src="cover-introductory.jpg" alt="专辑封面" draggable="false">
+  <div class="noise-disc" id="noiseDisc" role="button" tabindex="0" aria-label="点击暂停或继续播放" title="点击暂停 / 继续播放">
+    <img class="disc-cover" data-cover="music" src="cover-introductory.jpg" alt="" draggable="false">
+    <img class="disc-cover" data-cover="rain" src="cover-rain.svg" alt="" draggable="false">
+    <span class="disc-veil" aria-hidden="true">
+      <svg class="disc-glyph" viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+        <path class="g-pause" d="M9.5 5.5v13M14.5 5.5v13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <path class="g-play" d="M8.5 5.4v13.2L19 12z" fill="currentColor"/>
+      </svg>
+    </span>
   </div>
   <button class="noise-btn" data-noise="music" id="noiseMusic" title="After All〜綴る想い〜 (Inst.) · AQUAPLUS · WHITE ALBUM2 Original Soundtrack〜introductory〜">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
     音乐
   </button>
   <button class="noise-btn" data-noise="rain" id="noiseRain" title="Rainy Mood 提供的雨声">雨声</button>
-  <button class="noise-btn" id="noisePause" style="display:none" title="暂停 / 继续播放">暂停</button>
   <button class="noise-btn" data-noise="off" id="noiseOff">静音</button>
   <input type="range" class="noise-vol" id="noiseVol" min="0" max="100" value="45" title="音量">
   <audio id="musicAudio" loop preload="none" title="After All〜綴る想い〜 (Inst.) · AQUAPLUS · WHITE ALBUM2 Original Soundtrack〜introductory〜">
@@ -2324,26 +2347,39 @@ var noiseType='off';
 var musicAudio=document.getElementById('musicAudio');
 var rainAudio=document.getElementById('rainAudio');
 var noiseDisc=document.getElementById('noiseDisc');
-var noisePause=document.getElementById('noisePause');
 function activeAudio(){return noiseType==='music'?musicAudio:(noiseType==='rain'?rainAudio:null);}
-/* 播放状态 → 唱片转/停 + 暂停按钮文案 */
+/* 播放状态 → 唱片转/停 + 封面切换 + 文案 */
 function syncPlaybackUI(){
   var a=activeAudio();
   var playing=!!a&&!a.paused;
-  if(!a){
-    noisePause.style.display='none';
-    noiseDisc.classList.remove('spin');
-  }else{
-    noisePause.style.display='';
-    noisePause.textContent=playing?'暂停':'继续';
-    noisePause.classList.toggle('on',!playing);
-    noiseDisc.classList.toggle('spin',playing);
-  }
+  noiseDisc.dataset.coverActive=(noiseType==='rain'?'rain':'music');
+  noiseDisc.classList.toggle('spin',playing);
+  noiseDisc.classList.toggle('paused',!playing);
+  var tip=!a?'点击开始播放音乐':(playing?'点击暂停':'点击继续播放');
+  noiseDisc.title=tip;
+  noiseDisc.setAttribute('aria-label',tip);
   var label=document.getElementById('noiseToggleLabel');
   if(!a)label.textContent='背景音';
   else if(playing)label.textContent=noiseType==='music'?'音乐播放中':'雨声播放中';
   else label.textContent=noiseType==='music'?'音乐已暂停':'雨声已暂停';
 }
+/* 点唱片 = 暂停 / 继续；没有任何音源时则开始播放音乐 */
+function toggleNoise(){
+  var a=activeAudio();
+  if(!a){playNoise('music');return;}
+  if(a.paused){
+    a.volume=document.getElementById('noiseVol').value/100;
+    var p=a.play();
+    if(p&&p.catch)p.catch(function(){toast('继续播放失败，请检查网络');});
+  }else{
+    a.pause();
+  }
+  syncPlaybackUI();
+}
+noiseDisc.addEventListener('click',toggleNoise);
+noiseDisc.addEventListener('keydown',function(e){
+  if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){e.preventDefault();toggleNoise();}
+});
 function setNoiseUI(type){
   document.querySelectorAll('.noise-btn').forEach(function(b){
     if(!b.dataset.noise)return;
@@ -2384,18 +2420,6 @@ document.getElementById('noiseOff').addEventListener('click',function(){playNois
   a.addEventListener('playing',syncPlaybackUI);
   a.addEventListener('pause',syncPlaybackUI);
   a.addEventListener('ended',syncPlaybackUI);
-});
-noisePause.addEventListener('click',function(){
-  var a=activeAudio();
-  if(!a)return;
-  if(a.paused){
-    a.volume=document.getElementById('noiseVol').value/100;
-    var p=a.play();
-    if(p&&p.catch)p.catch(function(){toast('继续播放失败，请检查网络');});
-  }else{
-    a.pause();
-  }
-  syncPlaybackUI();
 });
 document.getElementById('noiseVol').addEventListener('input',function(){
   var v=this.value/100;
