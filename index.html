@@ -2535,31 +2535,33 @@ document.getElementById('noiseToggle').addEventListener('click',function(){
     syncPlaybackUI();
   }
 });
-/* 贴边收起 / 悬停铺开：鼠标离开一会儿后自动缩回，只留唱片继续转 */
+/* 贴边收起 / 悬停铺开：只认"鼠标是否停在面板上"，鼠标移出窗口也会正确收起 */
 (function(){
   var panel=document.getElementById('noisePanel');
   var toggle=document.getElementById('noiseToggle');
   if(!panel||!toggle)return;
-  var timer=0;
-  function expand(){clearTimeout(timer);panel.classList.add('open');}
+  var graceUntil=0;
+  function expand(){panel.classList.add('open');}
   function collapse(){panel.classList.remove('open');}
-  function laterCollapse(){clearTimeout(timer);timer=setTimeout(collapse,700);}
+  function hovering(){try{return panel.matches(':hover');}catch(e){return false;}}
+  function focused(){
+    var a=document.activeElement;
+    return !!a&&a!==document.body&&panel.contains(a);
+  }
+  /* 用轮询判断，而不是依赖鼠标事件：移出窗口、拖拽、切标签页等情况都能正确收起 */
+  setInterval(function(){
+    if(!panel.classList.contains('open'))return;
+    if(hovering()||focused())return;
+    if(Date.now()<graceUntil)return;
+    collapse();
+  },300);
   panel.addEventListener('mouseenter',expand);
-  panel.addEventListener('mouseleave',laterCollapse);
   panel.addEventListener('focusin',expand);
-  panel.addEventListener('focusout',function(e){
-    if(!panel.contains(e.relatedTarget))laterCollapse();
-  });
-  document.addEventListener('pointerdown',function(e){
-    if(!panel.contains(e.target)&&!toggle.contains(e.target))laterCollapse();
-  });
-  function inside(target){return panel.contains(target)||toggle.contains(target);}
-  document.addEventListener('pointermove',function(e){
-    if(!inside(e.target))laterCollapse();
-  },{passive:true});
-  /* 侧栏按钮打开面板时，先铺开一次 */
+  /* 侧栏按钮打开时先铺开 1.5 秒，方便把鼠标移过去；移过去之后才保持展开 */
   toggle.addEventListener('click',function(){
-    if(panel.style.display!=='none')expand();
+    if(panel.style.display==='none'){collapse();return;}
+    graceUntil=Date.now()+1500;
+    expand();
   });
   collapse();
 })();
