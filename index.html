@@ -143,6 +143,7 @@ input,textarea{font-family:inherit;color:inherit}
   -webkit-backdrop-filter:blur(14px) saturate(1.05);
   backdrop-filter:blur(14px) saturate(1.05);
   position:sticky;top:0;height:100vh;
+  overflow-y:auto;overflow-x:hidden;
   font-weight:400;
 }
 .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
@@ -183,6 +184,15 @@ input,textarea{font-family:inherit;color:inherit}
 .side-foot button.on svg{animation:pulseIce 2.2s ease-in-out infinite}
 @keyframes pulseIce{0%,100%{opacity:.55}50%{opacity:1}}
 .side-note{font-size:10.5px;font-weight:400;color:#a8bccb;line-height:1.7;margin-top:14px;padding:0 12px;letter-spacing:.5px}
+.side-mail{
+  display:flex;align-items:center;gap:9px;margin-top:10px;padding:8px 12px;
+  font-size:12px;letter-spacing:.5px;color:var(--ink-faint);text-decoration:none;border-radius:7px;
+  transition:background-color var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),
+             transform var(--dur) var(--ease-out);
+}
+.side-mail svg{flex-shrink:0;opacity:.8}
+.side-mail:hover{color:var(--ice-night);background:#f1f7fc;transform:translateX(2px)}
+body[data-theme="dark"] .side-mail:hover{background:#14293c;color:var(--ice-night)}
 
 main{flex:1;min-width:0;padding:48px clamp(34px,4.6vw,96px) 72px}
 .view{display:none;max-width:1680px;margin:0 auto}
@@ -266,6 +276,29 @@ body[data-theme="dark"] .view-head::before{
 .diary-title:focus{outline:none;border-color:var(--ice-deep);box-shadow:0 0 0 3px rgba(94,143,179,.14)}
 body[data-theme="dark"] .diary-title{border-color:rgba(126,169,201,.42);background-color:rgba(20,36,52,.5)}
 body[data-theme="dark"] .diary-title:focus{border-color:var(--ice);box-shadow:0 0 0 3px rgba(126,169,201,.18)}
+/* ===== 今天已写的几篇（一天可以写多篇） ===== */
+.today-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  max-width:900px;margin:0 auto;width:100%;padding:16px 30px 0;
+}
+.tb-label{font-size:11px;letter-spacing:3px;color:var(--ink-faint);flex-shrink:0}
+.tb-chips{display:flex;flex-wrap:wrap;gap:8px;min-height:26px;align-items:center}
+.tb-hint{font-size:12px;color:var(--ink-faint);letter-spacing:1px}
+.tb-chip{
+  padding:5px 13px;border-radius:999px;font-size:12px;letter-spacing:1px;
+  border:1px solid var(--line);background:var(--glass-bg-strong);color:var(--ink-soft);
+  cursor:pointer;transition:background-color var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),
+             border-color var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out);
+}
+.tb-chip:hover{border-color:var(--ice);color:var(--ice-night);transform:translateY(-1px)}
+.tb-chip.on{background:#e8f2f9;border-color:var(--ice);color:var(--ice-night)}
+body[data-theme="dark"] .tb-chip.on{background:#1c3450;border-color:#3d76a8;color:#d9ebfa}
+.tb-new{
+  margin-left:auto;padding:5px 14px;border-radius:999px;font-size:12px;letter-spacing:1px;
+  border:1px dashed var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;
+  transition:border-color var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out);
+}
+.tb-new:hover{border-color:var(--ice);color:var(--ice-night);transform:translateY(-1px)}
 .diary-title::placeholder{color:#b7c9d6;font-weight:300}
 .diary-body{
   display:block;width:100%;max-width:900px;margin:0 auto;flex:1;border:none;resize:none;min-height:380px;
@@ -338,6 +371,12 @@ body[data-theme="dark"] .diary-title:focus{border-color:var(--ice);box-shadow:0 
 .modal-actions button{padding:8px 20px;border-radius:20px;font-size:13px;letter-spacing:2px;cursor:pointer;
   transition:background-color var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),
              border-color var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out),box-shadow var(--dur) var(--ease-soft)}
+.modal-desc{font-size:12.5px;line-height:1.9;color:var(--ink-soft);margin-bottom:20px;letter-spacing:.5px}
+.modal-desc code{font-size:12px;background:rgba(132,173,204,.16);border-radius:5px;padding:1px 6px;color:var(--ice-night)}
+.modal-desc b{color:var(--ink);font-weight:500}
+.modal-actions-wrap{flex-wrap:wrap}
+.modal-danger{background:linear-gradient(120deg,#c2706f,#a9534f);color:#fff;border:none;box-shadow:0 4px 12px rgba(160,70,70,.28)}
+.modal-danger:hover{transform:translateY(-1px)}
 .modal-cancel{background:transparent;border:1px solid var(--line);color:var(--ink-soft)}
 .modal-cancel:hover{background:#eef5fb}
 .modal-ok{background:linear-gradient(120deg,var(--ice-deep),var(--ice-night));color:#fff;border:none;box-shadow:0 4px 12px rgba(78,122,160,.3)}
@@ -466,6 +505,11 @@ body[data-theme="dark"] .diary-title:focus{border-color:var(--ice);box-shadow:0 
 }
 .cal-cell.has{cursor:pointer;background:#e7f0f8;color:var(--ice-night);font-weight:400}
 .cal-cell.has:hover{background:#dae6f1;transform:scale(1.06)}
+.cal-cell .cal-count{
+  position:absolute;top:2px;right:4px;font-style:normal;font-size:9px;line-height:1;
+  color:var(--ice-deep);opacity:.9;
+}
+.cal-cell.selected .cal-count{color:#fff}
 .cal-cell.has::after{
   content:"";position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;
   background:var(--ice-deep);
@@ -480,14 +524,24 @@ body[data-theme="dark"] .diary-title:focus{border-color:var(--ice);box-shadow:0 
 .dot{width:7px;height:7px;border-radius:50%;background:var(--ice-deep);display:inline-block}
 .dot.hollow{background:transparent;border:1.2px solid var(--ice-deep)}
 
-.search-box{position:relative;margin-bottom:18px}
+.panel-search{margin-bottom:20px}
+.search-box{position:relative;margin-bottom:14px}
 .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);opacity:.5}
 .search-box input{
-  width:100%;padding:10px 14px 10px 38px;border-radius:10px;
+  width:100%;padding:10px 34px 10px 38px;border-radius:10px;
   border:1px solid var(--line);background:#f9fbfc;font-size:13px;letter-spacing:1px;
 }
 .search-box input::placeholder{color:#b7c9d6}
-.entry-list{display:flex;flex-direction:column;gap:9px;max-height:calc(100vh - 360px);min-height:280px;overflow-y:auto;padding-right:4px}
+.search-clear{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  width:22px;height:22px;border-radius:50%;display:none;align-items:center;justify-content:center;
+  font-size:15px;line-height:1;color:var(--ink-faint);background:transparent;
+  transition:background-color var(--dur-fast) var(--ease-soft),color var(--dur-fast) var(--ease-soft);
+}
+.search-clear:hover{background:rgba(132,173,204,.18);color:var(--ice-night)}
+.search-box.has-kw .search-clear{display:flex}
+.search-tip{font-size:11px;color:var(--ink-faint);letter-spacing:.5px;margin:0 0 12px}
+.entry-list{display:flex;flex-direction:column;gap:9px;max-height:44vh;min-height:220px;overflow-y:auto;padding-right:4px}
 .entry-item{
   padding:14px 16px;border-radius:10px;border:1px solid var(--line-soft);
   background:#f9fbfc;cursor:pointer;
@@ -693,7 +747,9 @@ body[data-theme="dark"] .diary-card.typing{box-shadow:0 12px 34px rgba(0,0,0,.4)
 }
 .tag-chip .tc-del{cursor:pointer;opacity:.55;font-size:13px;line-height:1}
 .tag-chip .tc-del:hover{opacity:1;color:#b04a4a}
-.tag-filter{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tag-filter{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.tag-filter:empty{display:none}
+.tf-label{font-size:11px;color:var(--ink-faint);letter-spacing:2px;margin-right:2px}
 .tag-filter .tchip{
   padding:5px 13px;border-radius:15px;font-size:12px;letter-spacing:1px;
   border:1px solid var(--line);background:#f9fbfc;color:var(--ink-soft);cursor:pointer;
@@ -704,6 +760,23 @@ body[data-theme="dark"] .diary-card.typing{box-shadow:0 12px 34px rgba(0,0,0,.4)
 .tag-filter .tchip.on{background:#e8f2f9;border-color:var(--ice);color:var(--ice-night)}
 .ei-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
 .ei-tag{font-size:10.5px;color:var(--ice-night);background:#eef5fb;border:1px solid var(--line);border-radius:10px;padding:1px 8px;letter-spacing:1px}
+/* ===== 垃圾桶 ===== */
+.trash-panel{max-width:1000px}
+.trash-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.trash-count{font-size:12px;color:var(--ink-faint);letter-spacing:2px}
+.trash-item{cursor:default}
+.trash-item .ei-prev{white-space:normal;line-height:1.7}
+.trash-meta{font-size:11px;color:var(--ink-faint);margin-top:9px;letter-spacing:.5px}
+.trash-acts{display:flex;gap:10px;margin-top:12px}
+.trash-btn{
+  padding:5px 15px;border-radius:999px;font-size:12px;letter-spacing:1px;
+  border:1px solid var(--line);background:var(--glass-bg-strong);color:var(--ink-soft);cursor:pointer;
+  transition:background-color var(--dur) var(--ease-soft),color var(--dur) var(--ease-soft),
+             border-color var(--dur) var(--ease-soft),transform var(--dur) var(--ease-out);
+}
+.trash-btn:hover{border-color:var(--ice);color:var(--ice-night);transform:translateY(-1px)}
+.trash-btn.danger:hover{border-color:#c2706f;color:#b0524f}
+.reader-tools button.danger:hover{border-color:#c2706f;color:#b0524f;background:rgba(194,112,111,.1)}
 
 /* ============ 专注模式 ============ */
 body.focus-mode .sidebar{display:none}
@@ -978,13 +1051,17 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
   display:flex;align-items:center;gap:10px;
   max-width:0;opacity:0;overflow:hidden;pointer-events:none;padding-left:0;
   transform:translateX(12px) scale(.97);
-  transition:max-width .26s var(--ease-out),opacity .16s var(--ease-soft),
-             transform .26s var(--ease-out),padding-left .26s var(--ease-out);
+  /* 收起走这一组：收得比展开更快，手感是"啪"地贴回去 */
+  transition:max-width .18s var(--ease-out),opacity .12s var(--ease-soft),
+             transform .18s var(--ease-out),padding-left .18s var(--ease-out);
 }
 .noise-panel.open .noise-ctl,
 .noise-panel:hover .noise-ctl,
 .noise-panel:focus-within .noise-ctl{
   max-width:min(70vw,520px);opacity:1;transform:none;padding-left:12px;pointer-events:auto;
+  /* 展开走这一组：稍慢一点，看起来是"铺开" */
+  transition:max-width .26s var(--ease-out),opacity .18s var(--ease-soft),
+             transform .26s var(--ease-out),padding-left .26s var(--ease-out);
 }
 .noise-ctl .noise-btn{white-space:nowrap}
 .noise-panel .noise-disc{width:46px;height:46px}
@@ -1038,8 +1115,16 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>
         写作统计
       </button>
+      <button class="nav-item" data-route="trash">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>
+        垃圾桶
+      </button>
     </nav>
     <div class="side-foot">
+      <button id="storageBtn" title="选择日记的本地存储位置">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.2l1.6 2H18a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 19H5.5A2.5 2.5 0 0 1 3 16.5z"/></svg>
+        <span id="storageLabel">存储位置</span>
+      </button>
       <button id="exportBtn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
         导出日记备份
@@ -1056,7 +1141,11 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         <span id="noiseToggleLabel">背景音</span>
       </button>
-      <p class="side-note">日记仅保存在此浏览器本地，<br>过往之日一经封存便不可修改。</p>
+      <p class="side-note" id="sideNote">日记仅保存在此浏览器本地，<br>过往之日一经封存便不可修改。</p>
+      <a class="side-mail" href="mailto:hilko@qq.com?subject=%E7%99%BD%E8%89%B2%E7%9B%B8%E7%B0%BF%20%C2%B7%20%E5%8F%8D%E9%A6%88" title="点这里给作者发邮件反馈">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.6 7.2l8.4 6 8.4-6"/></svg>
+        <span>hilko@qq.com</span>
+      </a>
     </div>
   </aside>
 
@@ -1073,6 +1162,11 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
           <div class="seal-banner" id="sealBanner" style="display:none">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14v3"/></svg>
             这一日已经封存，往事只可重读，不可更改。
+          </div>
+          <div class="today-bar" id="todayBar">
+            <span class="tb-label">今天</span>
+            <div class="tb-chips" id="todayChips"></div>
+            <button type="button" class="tb-new" id="newEntryBtn" title="在同一个日期下再写一篇">＋ 新的一篇</button>
           </div>
           <input class="diary-title" id="titleInput" type="text" maxlength="40" placeholder="给今天起一个题目">
           <div class="toolbar" id="toolbar">
@@ -1106,6 +1200,11 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
             <button class="tool-btn" id="btnFocus" title="专注模式">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               专注
+            </button>
+            <span class="tool-sep"></span>
+            <button class="tool-btn" id="btnClear" title="清空这一篇（已保存的内容会移入垃圾桶，可还原）">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M6.5 17.5L15 9a2.4 2.4 0 0 1 3.4 3.4l-8.5 8.5H6.5z"/><path d="M13.5 7.5l3 3"/></svg>
+              清空
             </button>
           </div>
           <div class="tag-editor" id="tagEditor">
@@ -1155,7 +1254,16 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
       </div>
       <div class="browse-grid">
         <div>
-          <div class="panel" style="margin-bottom:20px">
+          <div class="panel panel-search">
+            <div class="search-box">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8fb4d1" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input id="searchInput" type="text" placeholder="搜索标题、正文或标签…">
+              <button type="button" class="search-clear" id="searchClear" aria-label="清空搜索" title="清空">×</button>
+            </div>
+            <div class="tag-filter" id="tagFilter"></div>
+            <div class="entry-list" id="entryList"></div>
+          </div>
+          <div class="panel">
             <div class="cal-head">
               <div class="ym" id="calTitle"></div>
               <div class="cal-nav">
@@ -1168,14 +1276,6 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
               <span><i class="dot hollow"></i>今天</span>
               <span><i class="dot"></i>有日记</span>
             </div>
-          </div>
-          <div class="panel">
-            <div class="search-box">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8fb4d1" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-              <input id="searchInput" type="text" placeholder="搜索日记中的文字…">
-            </div>
-            <div class="tag-filter" id="tagFilter"></div>
-            <div class="entry-list" id="entryList"></div>
           </div>
         </div>
         <div class="reader" id="reader"></div>
@@ -1227,6 +1327,22 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
           <thead><tr><th>月份</th><th>日记篇数</th><th>总字数</th><th>平均字数</th></tr></thead>
           <tbody></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- ===== 视图：垃圾桶 ===== -->
+    <section class="view" id="view-trash">
+      <div class="view-head">
+        <div class="kicker">TRASH</div>
+        <h2>垃圾桶</h2>
+        <div class="line"></div>
+      </div>
+      <div class="panel trash-panel">
+        <div class="trash-head">
+          <span class="trash-count" id="trashCount"></span>
+          <button class="btn-ghost" id="trashEmpty">清空垃圾桶</button>
+        </div>
+        <div class="entry-list" id="trashList"></div>
       </div>
     </section>
   </main>
@@ -1348,10 +1464,35 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
   </div>
 </div>
 
+<!-- 存储位置弹窗 -->
+<div class="modal-mask" id="storageModal" style="display:none">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h4>日记存储位置</h4>
+    <p class="modal-desc" id="storageDesc"></p>
+    <div class="modal-actions modal-actions-wrap">
+      <button class="modal-cancel" id="storageReset">只用浏览器存储</button>
+      <button class="modal-cancel" id="storageCancel">关闭</button>
+      <button class="modal-ok" id="storagePick">选择文件夹</button>
+    </div>
+  </div>
+</div>
+
 <!-- 图片放大 lightbox -->
 <div class="lightbox" id="lightbox" style="display:none">
   <span class="lightbox-close">×</span>
   <img id="lightboxImg" src="" alt="">
+</div>
+
+<!-- 通用确认弹窗 -->
+<div class="modal-mask" id="confirmModal" style="display:none">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h4 id="confirmTitle">确认</h4>
+    <p class="modal-desc" id="confirmDesc"></p>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="confirmCancel">取消</button>
+      <button class="modal-ok" id="confirmOk">确定</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1386,13 +1527,30 @@ function loadAll(){
   try{return JSON.parse(localStorage.getItem(STORE_KEY))||{};}
   catch(e){return {};}
 }
-function saveAll(data){localStorage.setItem(STORE_KEY,JSON.stringify(data));}
+function saveAll(data){
+  localStorage.setItem(STORE_KEY,JSON.stringify(data));
+  queueFolderSync();   /* 已经连了本地文件夹的话，顺带把改动写进磁盘 */
+}
 var DB = loadAll();
 
 function toast(msg){
   var t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
   clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},2200);
+}
+/* 通用确认弹窗：清空 / 删除 / 清空垃圾桶都用它 */
+function askConfirm(title,desc,okLabel,onOk,danger){
+  var m=document.getElementById('confirmModal');
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmDesc').innerHTML=desc||'';
+  var ok=document.getElementById('confirmOk');
+  ok.textContent=okLabel||'确定';
+  ok.classList.toggle('modal-danger',!!danger);
+  function close(){m.style.display='none';ok.onclick=null;}
+  ok.onclick=function(){close();try{if(onOk)onOk();}catch(e){}};
+  document.getElementById('confirmCancel').onclick=close;
+  m.onclick=close;
+  m.style.display='flex';
 }
 
 /* ================= 飘雪背景 ================= */
@@ -1474,6 +1632,7 @@ function toast(msg){
   function pick(route){
     if(route==='browse')return 'town';
     if(route==='stats')return 'night';
+    if(route==='trash')return 'night';
     return daySeed%2===0?'day':'cg';
   }
   window.__applyWallpaper=function(route){
@@ -1485,7 +1644,7 @@ function toast(msg){
 })();
 
 /* ================= 路由 ================= */
-var routes=['today','browse','stats'];
+var routes=['today','browse','stats','trash'];
 function go(route){
   if(routes.indexOf(route)<0)route='today';
   location.hash='#/'+route;
@@ -1504,6 +1663,7 @@ function applyRoute(){
   if(route==='browse')renderBrowse();
   if(route==='stats')renderStats();
   if(route==='today')renderToday();
+  if(route==='trash')renderTrash();
   if(window.__applyWallpaper)window.__applyWallpaper(route);
 }
 window.addEventListener('hashchange',applyRoute);
@@ -1551,48 +1711,120 @@ document.getElementById('tagChips').addEventListener('click',function(e){
   renderTagChips();
   draftSave();
 });
-/* 素材草稿自动留存：插入图片/标签时合并进当天条目（正文需点保存） */
-function draftSave(){
+/* ===== 今日执笔：一天可以写多篇，editingKey 表示当前正在编辑的那一篇 ===== */
+var editingKey=todayKey();
+function todayKeys(){return dayEntries(todayKey());}
+function ensureEditingKeyToday(){
   var tk=todayKey();
+  if(DB[editingKey]&&entryDay(editingKey)===tk)return editingKey;
+  var ks=todayKeys();
+  editingKey=ks.length?ks[ks.length-1]:nextEntryKey(tk);
+  return editingKey;
+}
+function todayTotalWords(){
+  var total=countWords(document.getElementById('bodyInput').value);
+  todayKeys().forEach(function(k){if(k!==editingKey)total+=DB[k].words||0;});
+  return total;
+}
+function updateTodayCounters(){
+  document.getElementById('wordNow').textContent=countWords(document.getElementById('bodyInput').value);
+  document.getElementById('sideWordNow').textContent=todayTotalWords();
+}
+function renderTodayBar(){
+  var box=document.getElementById('todayChips'),ks=todayKeys();
+  if(!ks.length){
+    box.innerHTML='<span class="tb-hint">今天还没有落笔</span>';
+    return;
+  }
+  box.innerHTML=ks.map(function(k,i){
+    var e=DB[k];
+    var label=(ks.length>1?('第 '+(i+1)+' 篇'):'今天这一篇')+' · '+(e.words||0)+' 字';
+    return '<button type="button" class="tb-chip'+(k===editingKey?' on':'')+'" data-key="'+k+'" title="'+esc(e.title||'无题')+'">'+label+'</button>';
+  }).join('');
+}
+/* 把某一篇载入编辑器；key 为空表示开一篇新的空白 */
+function loadEntryIntoEditor(key){
+  var e=key?DB[key]:null;
+  document.getElementById('titleInput').value=e?(e.title||''):'';
+  document.getElementById('bodyInput').value=e?(e.content||''):'';
+  form.weather=e?(e.weather||''):'';form.mood=e?(e.mood||''):'';
+  currentImages=e&&e.images?e.images.slice():[];
+  currentTags=e&&e.tags?e.tags.slice():[];
+  renderTags();renderImages();renderTagChips();
+  var meta=e?('最后保存于 '+fmtTime(e.updatedAt)):'';
+  document.getElementById('saveMeta').textContent=meta;
+  document.getElementById('sideSaveMeta').textContent=meta;
+  updateTodayCounters();
+  renderTodayBar();
+}
+/* 素材草稿自动留存：插入图片/标签时合并进当前这一篇（正文需点保存） */
+function draftSave(){
   if(!currentImages.length&&!currentTags.length)return;
-  var old=DB[tk];
+  var tk=todayKey();
+  if(entryDay(editingKey)!==tk)editingKey=nextEntryKey(tk);
+  var old=DB[editingKey];
   if(old){
     old.images=currentImages.slice();old.tags=currentTags.slice();old.updatedAt=Date.now();
   }else{
-    DB[tk]={date:tk,title:'',content:'',weather:form.weather,mood:form.mood,
+    DB[editingKey]={date:tk,title:'',content:'',weather:form.weather,mood:form.mood,
       words:0,images:currentImages.slice(),tags:currentTags.slice(),
       createdAt:Date.now(),updatedAt:Date.now()};
   }
   saveAll(DB);
+  renderTodayBar();
 }
 function renderToday(){
-  var now=new Date(),tk=todayKey(),f=fmtCN(tk);
+  var tk=todayKey(),f=fmtCN(tk);
   document.getElementById('sideWeek').textContent=f.w;
   document.getElementById('sideDate').textContent=f.y+' 年 '+f.m+' 月 '+f.d+' 日';
   document.getElementById('todayYmd').textContent=f.y+' 年 '+f.m+' 月 '+f.d+' 日';
   document.getElementById('todayWeek').innerHTML=f.w+'　·　雪が溶ける前に';
-  var e=DB[tk],locked=false;
-  form.weather=e?e.weather:'';form.mood=e?e.mood:'';
-  renderTags();
-  var titleEl=document.getElementById('titleInput'),bodyEl=document.getElementById('bodyInput');
-  var meta=e?('最后保存于 '+fmtTime(e.updatedAt)):'';
-  titleEl.value=e?e.title||'':'';
-  bodyEl.value=e?e.content||'':'';
-  currentImages=e&&e.images?e.images.slice():[];
-  currentTags=e&&e.tags?e.tags.slice():[];
-  renderImages();
-  renderTagChips();
-  document.getElementById('toolbar').style.display=locked?'none':'';
-  document.getElementById('tagEditor').style.display=locked?'none':'';
+  ensureEditingKeyToday();
+  loadEntryIntoEditor(DB[editingKey]?editingKey:null);
+  document.getElementById('toolbar').style.display='';
+  document.getElementById('tagEditor').style.display='';
+  document.getElementById('sealBanner').style.display='none';
+  document.getElementById('titleInput').readOnly=false;
+  document.getElementById('bodyInput').readOnly=false;
+  document.getElementById('saveBtn').style.display='';
+  document.getElementById('diaryCard').classList.remove('locked');
+}
+/* 把编辑器里的内容落盘到当前这一篇（切换/新建前会先自动存一次，避免丢字） */
+function commitCurrent(showToast){
+  var title=document.getElementById('titleInput').value.trim();
+  var content=document.getElementById('bodyInput').value.trim();
+  if(!content&&!title&&!currentImages.length&&!currentTags.length){
+    if(showToast)toast('还什么都没有写下');
+    return false;
+  }
+  var tk=todayKey();
+  if(entryDay(editingKey)!==tk)editingKey=nextEntryKey(tk);
+  var now=Date.now(),old=DB[editingKey];
+  DB[editingKey]={date:tk,title:title,content:content,weather:form.weather,mood:form.mood,
+    words:countWords(content),images:currentImages.slice(),tags:currentTags.slice(),
+    createdAt:old?old.createdAt:now,updatedAt:now};
+  saveAll(DB);
+  var meta='最后保存于 '+fmtTime(now);
   document.getElementById('saveMeta').textContent=meta;
   document.getElementById('sideSaveMeta').textContent=meta;
-  document.getElementById('wordNow').textContent=countWords(bodyEl.value);
-  document.getElementById('sideWordNow').textContent=countWords(bodyEl.value);
-  document.getElementById('sealBanner').style.display='none';
-  titleEl.readOnly=locked;bodyEl.readOnly=locked;
-  document.getElementById('saveBtn').style.display='';
-  document.getElementById('diaryCard').classList.toggle('locked',locked);
+  renderTodayBar();updateTodayCounters();
+  if(showToast)toast(old?'这一篇已更新':'已写进今天');
+  return true;
 }
+document.getElementById('todayChips').addEventListener('click',function(e){
+  var b=e.target.closest('.tb-chip');if(!b)return;
+  if(b.dataset.key===editingKey)return;
+  commitCurrent(false);
+  editingKey=b.dataset.key;
+  loadEntryIntoEditor(editingKey);
+});
+document.getElementById('newEntryBtn').addEventListener('click',function(){
+  commitCurrent(false);
+  editingKey=nextEntryKey(todayKey());
+  loadEntryIntoEditor(null);
+  document.getElementById('titleInput').focus();
+  toast('新的一篇，写完点「保存今日」');
+});
 document.addEventListener('click',function(e){
   var t=e.target.closest('.tag');
   if(t&&t.dataset.g){
@@ -1677,11 +1909,7 @@ function burstFX(el,n){
 }
 function bindTypeFX(el,isBody){
   el.addEventListener('input',function(){
-    if(isBody){
-      var w=countWords(this.value);
-      document.getElementById('wordNow').textContent=w;
-      document.getElementById('sideWordNow').textContent=w;
-    }
+    if(isBody)updateTodayCounters();
     typeFX(this);
   });
   el.addEventListener('compositionend',function(){burstFX(this,2);});
@@ -1689,23 +1917,29 @@ function bindTypeFX(el,isBody){
 bindTypeFX(document.getElementById('bodyInput'),true);
 bindTypeFX(document.getElementById('titleInput'),false);
 document.getElementById('saveBtn').addEventListener('click',function(){
-  var tk=todayKey();
-  if(tk!==todayKey()){toast('这一日已经封存');return;}
-  var title=document.getElementById('titleInput').value.trim();
-  var content=document.getElementById('bodyInput').value.trim();
-  if(!content&&!currentImages.length&&!currentTags.length){toast('还什么都没有写下');return;}
-  var now=Date.now(),old=DB[tk];
-  DB[tk]={
-    date:tk,title:title,content:content,
-    weather:form.weather,mood:form.mood,
-    words:countWords(content),images:currentImages.slice(),tags:currentTags.slice(),
-    createdAt:old?old.createdAt:now,updatedAt:now
-  };
-  saveAll(DB);
-  var meta='最后保存于 '+fmtTime(now);
-  document.getElementById('saveMeta').textContent=meta;
-  document.getElementById('sideSaveMeta').textContent=meta;
-  toast(old?'今日的日记已更新':'已封存进雪层里');
+  commitCurrent(true);
+});
+/* 清空这一篇：省得逐行删；已经保存过的内容会移入垃圾桶，可以还原 */
+document.getElementById('btnClear').addEventListener('click',function(){
+  var hasAny=document.getElementById('titleInput').value.trim()||
+             document.getElementById('bodyInput').value.trim()||
+             currentImages.length||currentTags.length||DB[editingKey];
+  if(!hasAny){toast('这里已经是空的');return;}
+  askConfirm('清空这一篇',
+    '标题、正文、标签、图片都会清掉。<br>如果这一篇已经保存过，原文会移入<b>垃圾桶</b>，可以从侧栏的「垃圾桶」里还原。',
+    '清空',function(){
+      var existed=!!DB[editingKey];
+      if(existed)trashEntry(editingKey);
+      document.getElementById('titleInput').value='';
+      document.getElementById('bodyInput').value='';
+      currentImages=[];currentTags=[];
+      form.weather='';form.mood='';
+      renderTags();renderImages();renderTagChips();
+      document.getElementById('saveMeta').textContent='';
+      document.getElementById('sideSaveMeta').textContent='';
+      updateTodayCounters();renderTodayBar();
+      toast(existed?'已清空，原文在垃圾桶里':'已清空');
+    },true);
 });
 /* ========== 写作工具栏 ========== */
 var FONT_KEY='yuki_font_size';
@@ -2551,10 +2785,23 @@ document.getElementById('noiseToggle').addEventListener('click',function(){
   /* 用轮询判断，而不是依赖鼠标事件：移出窗口、拖拽、切标签页等情况都能正确收起 */
   setInterval(function(){
     if(!panel.classList.contains('open'))return;
+    if(pointerDown)return;
     if(hovering()||focused())return;
     if(Date.now()<graceUntil)return;
     collapse();
   },100);
+  /* 事件驱动的立即收起：鼠标一离开面板就收，不再等轮询 */
+  var pointerDown=false;
+  panel.addEventListener('pointerdown',function(){pointerDown=true;});
+  window.addEventListener('pointerup',function(){pointerDown=false;});
+  panel.addEventListener('pointerleave',function(){
+    if(pointerDown||focused())return;
+    collapse();
+  });
+  document.documentElement.addEventListener('mouseleave',function(){
+    if(pointerDown||focused())return;
+    collapse();
+  });
   panel.addEventListener('mouseenter',expand);
   panel.addEventListener('focusin',expand);
   /* 侧栏按钮打开时先铺开 1.5 秒，方便把鼠标移过去；移过去之后才保持展开 */
@@ -2579,6 +2826,32 @@ setInterval(function(){
 var calCursor=new Date();calCursor.setDate(1);
 var selectedKey=null;
 function sortedKeys(){return Object.keys(DB).sort();}
+/* ---- 一天可以写多篇：当天第一篇沿用日期当键，之后的键加 #2 / #3 … ---- */
+function keyOfDate(idx,date){return idx<=1?date:date+'#'+idx;}
+function entryDay(k){var e=DB[k];return (e&&e.date)?e.date:String(k).split('#')[0];}
+function entryNo(k){var p=String(k).split('#');return p.length>1?(parseInt(p[1],10)||2):1;}
+function dayEntries(date){
+  return sortedKeys().filter(function(k){return DB[k]&&entryDay(k)===date;});
+}
+function dayIndex(){
+  var idx={};
+  sortedKeys().forEach(function(k){
+    var e=DB[k];if(!e)return;
+    if(!e.content&&!(e.images&&e.images.length))return;
+    var d=entryDay(k);
+    (idx[d]=idx[d]||[]).push(k);
+  });
+  return idx;
+}
+function dayWords(date){
+  var t=0;dayEntries(date).forEach(function(k){t+=DB[k].words||0;});
+  return t;
+}
+function nextEntryKey(date){
+  var n=1;while(DB[keyOfDate(n,date)])n++;
+  return keyOfDate(n,date);
+}
+function entriesSortedDesc(){return sortedKeys().filter(function(k){return !!DB[k];}).reverse();}
 function nameOf(group,k){
   var arr=group==='weather'?WEATHERS:MOODS;
   var x=arr.find(function(a){return a.k===k;});
@@ -2591,17 +2864,20 @@ function renderCal(){
   var lead=(first.getDay()+6)%7; /* 周一开头 */
   var days=new Date(y,m+1,0).getDate();
   var tk=todayKey();
+  var idx=dayIndex();
+  var selDate=selectedKey?entryDay(selectedKey):'';
   var html=['一','二','三','四','五','六','日'].map(function(w){return '<div class="dow">'+w+'</div>';}).join('');
   for(var i=0;i<lead;i++)html+='<div class="cal-cell"></div>';
   for(var d=1;d<=days;d++){
     var k=keyOf(new Date(y,m,d));
+    var n=(idx[k]||[]).length;
     var cls='cal-cell';
-    var hasEntry=DB[k]&&(DB[k].content||(DB[k].images&&DB[k].images.length));
-    if(hasEntry)cls+=' has';
+    if(n)cls+=' has';
+    if(n>1)cls+=' many';
     if(k===tk)cls+=' today';
-    if(k===selectedKey)cls+=' selected';
+    if(k===selDate)cls+=' selected';
     if(k>tk)cls+=' future';
-    html+='<div class="'+cls+'"'+(hasEntry?' data-key="'+k+'"':'')+'>'+d+'</div>';
+    html+='<div class="'+cls+'"'+(n?' data-key="'+k+'"':'')+(n?' title="'+n+' 篇"':'')+'>'+d+(n>1?'<i class="cal-count">'+n+'</i>':'')+'</div>';
   }
   document.getElementById('calGrid').innerHTML=html;
 }
@@ -2615,7 +2891,7 @@ function renderTagFilter(){
   var tags=Object.keys(set).sort();
   var box=document.getElementById('tagFilter');
   if(!tags.length){box.innerHTML='';return;}
-  var html='<button type="button" class="tchip'+(activeTag?'':' on')+'" data-t="">全部</button>';
+  var html='<span class="tf-label">标签</span><button type="button" class="tchip'+(activeTag?'':' on')+'" data-t="">全部</button>';
   html+=tags.map(function(t){
     return '<button type="button" class="tchip'+(t===activeTag?' on':'')+'" data-t="'+esc(t)+'">'+esc(t)+'</button>';
   }).join('');
@@ -2628,12 +2904,15 @@ document.getElementById('tagFilter').addEventListener('click',function(e){
   renderList(document.getElementById('searchInput').value.trim());
 });
 function renderList(kw){
+  var q=(kw||'').trim().toLowerCase();
   var keys=sortedKeys().filter(function(k){
     var e=DB[k];
     if(!e.content&&!(e.images&&e.images.length))return false;
     if(activeTag&&!((e.tags||[]).indexOf(activeTag)>=0))return false;
-    if(!kw)return true;
-    return (e.title&&e.title.indexOf(kw)>=0)||(e.content&&e.content.indexOf(kw)>=0);
+    if(!q)return true;
+    /* 标题 / 正文 / 标签 都参与匹配，且不区分大小写 */
+    var hay=((e.title||'')+'\n'+(e.content||'')+'\n'+((e.tags||[]).join(' '))).toLowerCase();
+    return hay.indexOf(q)>=0;
   }).reverse();
   var box=document.getElementById('entryList');
   if(!keys.length){
@@ -2642,12 +2921,14 @@ function renderList(kw){
     return;
   }
   box.innerHTML=keys.map(function(k){
-    var e=DB[k],f=fmtCN(k);
+    var e=DB[k],f=fmtCN(entryDay(k));
     var title=e.title||('无题 · '+f.m+'月'+f.d+'日');
     var prev=(e.content||'').replace(/\s/g,'').slice(0,34);
     var tagsHtml=(e.tags&&e.tags.length)?'<div class="ei-tags">'+e.tags.map(function(t){return '<span class="ei-tag">'+esc(t)+'</span>';}).join('')+'</div>':'';
+    var dayKs=dayEntries(entryDay(k));
+    var no=dayKs.length>1?('　第 '+(dayKs.indexOf(k)+1)+' 篇'):'';
     return '<div class="entry-item'+(k===selectedKey?' active':'')+'" data-key="'+k+'">'+
-      '<div class="ei-top"><span class="ei-date">'+f.m+'月'+f.d+'日 · '+f.w+'</span>'+
+      '<div class="ei-top"><span class="ei-date">'+f.m+'月'+f.d+'日 · '+f.w+no+'</span>'+
       '<span class="ei-words">'+e.words+' 字</span></div>'+
       '<div class="ei-title">'+esc(title)+'</div>'+
       '<div class="ei-prev">'+esc(prev)+'</div>'+tagsHtml+'</div>';
@@ -2662,8 +2943,12 @@ function renderReader(){
       '<p>雪地上还没有脚印</p><small>从左侧日历选择一个日子，重读那天的故事</small></div>';
     return;
   }
-  var f=fmtCN(e.date),keys=sortedKeys(),idx=keys.indexOf(e.date);
-  var sealed=e.date<todayKey();
+  var eDay=entryDay(selectedKey);
+  var f=fmtCN(eDay);
+  var list=entriesSortedDesc(),idx=list.indexOf(selectedKey);
+  var sealed=eDay<todayKey();
+  var dayKs=dayEntries(eDay);
+  var noLabel=dayKs.length>1?('第 '+(dayKs.indexOf(selectedKey)+1)+' 篇'):'';
   var tags=[];
   if(e.weather)tags.push('<span class="r-tag">'+tagIcon(e.weather)+nameOf('weather',e.weather)+'</span>');
   if(e.mood)tags.push('<span class="r-tag">心境 · '+nameOf('mood',e.mood)+'</span>');
@@ -2675,7 +2960,7 @@ function renderReader(){
       '已于 '+fmtTime(e.updatedAt)+' 封存，不可修改</div>':'')+
     '<div class="reader-head" style="'+(sealed?'border:none;padding-bottom:0;margin-top:18px':'')+'">'+
       '<div class="r-date">'+f.y+' 年 '+f.m+' 月 '+f.d+' 日</div>'+
-      '<div class="r-week">'+f.w+'</div>'+
+      '<div class="r-week">'+f.w+(noLabel?('　·　'+noLabel):'')+'</div>'+
       '<div class="r-tags">'+tags.join('')+'</div>'+
     '</div>'+
     '<h3 class="reader-title">'+title+'</h3>'+
@@ -2691,15 +2976,29 @@ function renderReader(){
     '<div class="reader-tools">'+
       '<button id="expTxtBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>导出文本</button>'+
       '<button id="expImgBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>导出为图片</button>'+
+      '<button id="delEntryBtn" class="danger"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>删除</button>'+
     '</div>'+
     '<div class="reader-pager">'+
-      '<button id="prevEntry" '+(idx<=0?'disabled':'')+'>← 上一篇</button>'+
-      '<button id="nextEntry" '+(idx>=keys.length-1?'disabled':'')+'>下一篇 →</button>'+
+      '<button id="prevEntry" '+(idx>=list.length-1?'disabled':'')+'>← 上一篇</button>'+
+      '<button id="nextEntry" '+(idx<=0?'disabled':'')+'>下一篇 →</button>'+
     '</div>';
-  document.getElementById('prevEntry').onclick=function(){if(idx>0){selectedKey=keys[idx-1];renderBrowse();}};
-  document.getElementById('nextEntry').onclick=function(){if(idx<keys.length-1){selectedKey=keys[idx+1];renderBrowse();}};
+  document.getElementById('prevEntry').onclick=function(){if(idx<list.length-1){selectedKey=list[idx+1];renderBrowse();}};
+  document.getElementById('nextEntry').onclick=function(){if(idx>0){selectedKey=list[idx-1];renderBrowse();}};
   document.getElementById('expTxtBtn').onclick=function(){exportEntryTxt(e);};
   document.getElementById('expImgBtn').onclick=function(){exportEntryImg();};
+  document.getElementById('delEntryBtn').onclick=function(){
+    var k=selectedKey;
+    askConfirm('删除这篇日记',
+      '「'+esc(e.title||'无题')+'」会移入<b>垃圾桶</b>，可以在侧栏的「垃圾桶」里随时还原。',
+      '删除',function(){
+        if(trashEntry(k)){
+          var all=entriesSortedDesc();
+          selectedKey=all.length?all[0]:null;
+          renderBrowse();
+          toast('已移入垃圾桶');
+        }
+      },true);
+  };
 }
 function exportEntryTxt(e){
   var f=fmtCN(e.date);
@@ -2751,8 +3050,9 @@ function exportEntryImg(){
 }
 function renderBrowse(){
   if(!selectedKey){
-    var ks=sortedKeys();
-    selectedKey=DB[todayKey()]?todayKey():(ks.length?ks[ks.length-1]:null);
+    var tks=todayKeys();
+    if(tks.length)selectedKey=tks[tks.length-1];
+    else{var all=entriesSortedDesc();selectedKey=all.length?all[0]:null;}
   }
   renderCal();renderTagFilter();renderList(document.getElementById('searchInput').value.trim());renderReader();
 }
@@ -2760,19 +3060,34 @@ document.getElementById('calPrev').onclick=function(){calCursor.setMonth(calCurs
 document.getElementById('calNext').onclick=function(){calCursor.setMonth(calCursor.getMonth()+1);renderCal();};
 document.getElementById('calGrid').addEventListener('click',function(e){
   var c=e.target.closest('.cal-cell.has');if(!c)return;
-  selectedKey=c.dataset.key;renderBrowse();
+  /* 一天可能有好几篇，点日期默认打开当天最后一篇 */
+  var ks=dayEntries(c.dataset.key);
+  selectedKey=ks.length?ks[ks.length-1]:c.dataset.key;
+  renderBrowse();
 });
 document.getElementById('entryList').addEventListener('click',function(e){
   var it=e.target.closest('.entry-item');if(!it)return;
   selectedKey=it.dataset.key;renderBrowse();
 });
-document.getElementById('searchInput').addEventListener('input',function(){
-  renderList(this.value.trim());
+var searchInputEl=document.getElementById('searchInput');
+var searchBoxEl=document.querySelector('.search-box');
+function syncSearchUI(){ if(searchBoxEl) searchBoxEl.classList.toggle('has-kw', !!searchInputEl.value.trim()); }
+searchInputEl.addEventListener('input',function(){
+  syncSearchUI();
+  renderList(this.value);
+});
+searchInputEl.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&this.value){ this.value=''; syncSearchUI(); renderList(''); }
+});
+document.getElementById('searchClear').addEventListener('click',function(){
+  searchInputEl.value=''; syncSearchUI(); renderList(''); searchInputEl.focus();
 });
 
 /* ================= 写作统计 ================= */
 function streaks(){
-  var set={},ks=sortedKeys(),cur=0,best=0,run=0,prev=null;
+  var idx=dayIndex();
+  var ks=Object.keys(idx).sort();
+  var set={},cur=0,best=0,run=0,prev=null;
   ks.forEach(function(k){set[k]=1;});
   /* 最长连续 */
   ks.forEach(function(k){
@@ -2786,7 +3101,7 @@ function streaks(){
   var d=new Date();
   if(!set[keyOf(d)])d.setDate(d.getDate()-1);
   while(set[keyOf(d)]){cur++;d.setDate(d.getDate()-1);}
-  return {cur:cur,best:best};
+  return {cur:cur,best:best,days:ks.length};
 }
 function heatLevel(w){
   if(!w)return 0;
@@ -2794,15 +3109,18 @@ function heatLevel(w){
 }
 var charts=[];
 function renderStats(){
-  var ks=sortedKeys(),total=ks.length,words=0,monthCount=0,monthWords=0;
+  var ks=sortedKeys().filter(function(k){var e=DB[k];return e&&(e.content||(e.images&&e.images.length));});
+  var dIdx=dayIndex(),dayKeysAll=Object.keys(dIdx);
+  var total=ks.length,words=0,monthCount=0,monthWords=0,monthDays=0;
   var ym=todayKey().slice(0,7);
   ks.forEach(function(k){
-    words+=DB[k].words;
-    if(k.slice(0,7)===ym){monthCount++;monthWords+=DB[k].words;}
+    words+=DB[k].words||0;
+    if(entryDay(k).slice(0,7)===ym){monthCount++;monthWords+=DB[k].words||0;}
   });
+  dayKeysAll.forEach(function(k){if(k.slice(0,7)===ym)monthDays++;});
   var st=streaks();
   document.getElementById('statCards').innerHTML=[
-    {n:total,u:'篇',l:'累计日记',s:'本月写下 '+monthCount+' 篇'},
+    {n:total,u:'篇',l:'累计日记',s:'写于 '+st.days+' 天　本月 '+monthCount+' 篇'},
     {n:words,u:'字',l:'累计字数',s:'本月 '+monthWords+' 字'},
     {n:st.cur,u:'天',l:'当前连续',s:st.cur?'雪还没有停':'昨天休息了一天'},
     {n:st.best,u:'天',l:'最长连续',s:'坚持过的最长纪录'}
@@ -2816,8 +3134,10 @@ function renderStats(){
   var s0=new Date();s0.setDate(s0.getDate()-((s0.getDay()+6)%7)-23*7);
   for(var i=0;i<24*7;i++){
     var d=new Date(s0);d.setDate(d.getDate()+i);
-    var k=keyOf(d),e=DB[k],lv=e?heatLevel(e.words):0;
-    var title=k+(e?'　'+e.words+' 字':'　无日记');
+    var k=keyOf(d),list=dIdx[k]||[],w=0;
+    list.forEach(function(kk){w+=DB[kk].words||0;});
+    var lv=w?heatLevel(w):0;
+    var title=k+(list.length?(w+' 字'+(list.length>1?('　'+list.length+' 篇'):'')):'　无日记');
     cells+='<div class="heat-cell'+(lv?' l'+lv:'')+'" title="'+title+'"></div>';
   }
   document.getElementById('heatGrid').innerHTML=cells;
@@ -2834,7 +3154,8 @@ function renderStats(){
     var d=new Date();d.setDate(d.getDate()-i);
     var k=keyOf(d);
     d30.push((d.getMonth()+1)+'/'+d.getDate());
-    v30.push(DB[k]?DB[k].words:0);
+    var sum=0;(dIdx[k]||[]).forEach(function(kk){sum+=DB[kk].words||0;});
+    v30.push(sum);
   }
   var c1=echarts.init(document.getElementById('chart30'));charts.push(c1);
   c1.setOption({
@@ -2848,11 +3169,11 @@ function renderStats(){
   });
   /* 星期分布：周一起 */
   var wk=[0,0,0,0,0,0,0];
-  ks.forEach(function(k){var d=parseKey(k);wk[(d.getDay()+6)%7]++;});
+  ks.forEach(function(k){var d=parseKey(entryDay(k));wk[(d.getDay()+6)%7]++;});
   /* 热力图侧栏：写作习惯 */
   var busiest=wk.indexOf(Math.max.apply(null,wk));
   var sideItems=[
-    {v:total,u:'天',l:'有日记的日子'},
+    {v:st.days,u:'天',l:'有日记的日子'},
     {v:total?Math.round(words/total):0,u:'字',l:'每篇平均字数'},
     {v:total?['周一','周二','周三','周四','周五','周六','周日'][busiest]:'——',u:'',l:'最常落笔的日子'}
   ];
@@ -2873,9 +3194,9 @@ function renderStats(){
   /* 月度汇总 */
   var mm={};
   ks.forEach(function(k){
-    var m=k.slice(0,7);
+    var m=entryDay(k).slice(0,7);
     if(!mm[m])mm[m]={n:0,w:0};
-    mm[m].n++;mm[m].w+=DB[k].words;
+    mm[m].n++;mm[m].w+=DB[k].words||0;
   });
   var rows=Object.keys(mm).sort().reverse().slice(0,12).map(function(m){
     var x=mm[m];
@@ -2948,11 +3269,12 @@ document.getElementById('importFileInput').addEventListener('change',function(){
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('bad');
       var added=0,skipped=0;
       Object.keys(data).forEach(function(k){
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(k))return;
+        if(!/^\d{4}-\d{2}-\d{2}(#\d+)?$/.test(k))return;
         var en=data[k];
         if(!en||typeof en!=='object')return;
         if(!en.content&&!(en.images&&en.images.length)&&!(en.tags&&en.tags.length))return;
         if(DB[k]){skipped++;return;}
+        en.date=en.date||String(k).split('#')[0];
         DB[k]=en;
         DB[k].words=DB[k].words||countWords(en.content||'');
         added++;
@@ -2968,6 +3290,273 @@ document.getElementById('importFileInput').addEventListener('change',function(){
   };
   reader.readAsText(file);
 });
+
+/* ================= 本地文件夹存储（File System Access API） ================= */
+/* ===== 垃圾桶：删除的日记先放这里，可还原 ===== */
+var TRASH_KEY='yuki_trash_v1';
+var TRASH=(function(){try{var a=JSON.parse(localStorage.getItem(TRASH_KEY));return Array.isArray(a)?a:[];}catch(e){return[];}})();
+function saveTrash(){try{localStorage.setItem(TRASH_KEY,JSON.stringify(TRASH));}catch(e){}}
+function trashEntry(key){
+  var e=DB[key];if(!e)return false;
+  TRASH.unshift({key:key,entry:e,deletedAt:Date.now()});
+  delete DB[key];
+  saveAll(DB);saveTrash();
+  return true;
+}
+function restoreTrash(i){
+  var t=TRASH[i];if(!t)return null;
+  var date=(t.entry&&t.entry.date)?t.entry.date:String(t.key||'').split('#')[0];
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))date=todayKey();
+  var k=nextEntryKey(date);
+  var e=t.entry||{};e.date=date;e.updatedAt=Date.now();
+  DB[k]=e;
+  TRASH.splice(i,1);
+  saveAll(DB);saveTrash();
+  return k;
+}
+function purgeTrash(i){TRASH.splice(i,1);saveTrash();}
+function purgeAllTrash(){TRASH=[];saveTrash();}
+function renderTrash(){
+  var box=document.getElementById('trashList');
+  var cnt=document.getElementById('trashCount');
+  if(cnt)cnt.textContent=TRASH.length?('共 '+TRASH.length+' 篇待处理'):'';
+  if(!TRASH.length){
+    box.innerHTML='<div style="padding:44px 10px;text-align:center;color:var(--ink-faint);font-size:12.5px;letter-spacing:1px">垃圾桶是空的</div>';
+    return;
+  }
+  box.innerHTML=TRASH.map(function(t,i){
+    var e=t.entry||{},date=e.date||String(t.key||'').split('#')[0];
+    var f=fmtCN(date),no=entryNo(t.key||'');
+    var title=e.title||('无题 · '+f.m+'月'+f.d+'日');
+    var prev=(e.content||'').replace(/\s/g,'').slice(0,70);
+    var tags=(e.tags&&e.tags.length)?'<div class="ei-tags">'+e.tags.map(function(x){return '<span class="ei-tag">'+esc(x)+'</span>';}).join('')+'</div>':'';
+    return '<div class="entry-item trash-item" data-i="'+i+'">'+
+      '<div class="ei-top"><span class="ei-date">'+f.m+'月'+f.d+'日 · '+f.w+(no>1?('　第 '+no+' 篇'):'')+'</span>'+
+      '<span class="ei-words">'+(e.words||0)+' 字</span></div>'+
+      '<div class="ei-title">'+esc(title)+'</div>'+
+      '<div class="ei-prev">'+esc(prev)+'</div>'+tags+
+      '<div class="trash-meta">删除于 '+fmtTime(t.deletedAt)+'</div>'+
+      '<div class="trash-acts">'+
+        '<button type="button" class="trash-btn" data-act="restore">还原</button>'+
+        '<button type="button" class="trash-btn danger" data-act="purge">彻底删除</button>'+
+      '</div></div>';
+  }).join('');
+}
+document.getElementById('trashList').addEventListener('click',function(e){
+  var b=e.target.closest('.trash-btn');if(!b)return;
+  var item=e.target.closest('.trash-item');if(!item)return;
+  var i=parseInt(item.dataset.i,10);
+  if(b.dataset.act==='restore'){
+    var k=restoreTrash(i);
+    if(k){renderTrash();toast('已还原到 '+entryDay(k)+'（第 '+entryNo(k)+' 篇）');}
+    else toast('还原失败');
+  }else{
+    askConfirm('彻底删除','删除后无法恢复，确定要永久删除这一篇吗？','永久删除',function(){
+      purgeTrash(i);renderTrash();toast('已永久删除');
+    },true);
+  }
+});
+document.getElementById('trashEmpty').addEventListener('click',function(){
+  if(!TRASH.length){toast('垃圾桶已经是空的');return;}
+  askConfirm('清空垃圾桶','垃圾桶里的 '+TRASH.length+' 篇日记将被永久删除，无法恢复。','清空',function(){
+    purgeAllTrash();renderTrash();toast('垃圾桶已清空');
+  },true);
+});
+
+/* ================= 本地文件夹存储（File System Access API） ================= */
+var FS_SUPPORTED = typeof window.showDirectoryPicker === 'function';
+var SYNC_KEY = 'yuki_synced_v1';
+var dirHandle = null, syncTimer = 0, syncing = false, syncPending = false;
+var lastSynced = (function(){ try{ return JSON.parse(localStorage.getItem(SYNC_KEY))||{}; }catch(e){ return {}; } })();
+function saveSynced(){ try{ localStorage.setItem(SYNC_KEY, JSON.stringify(lastSynced)); }catch(e){} }
+
+function idbOpen(){
+  return new Promise(function(res,rej){
+    var r = indexedDB.open('yuki-diary-store', 1);
+    r.onupgradeneeded = function(){ if(!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv'); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror = function(){ rej(r.error); };
+  });
+}
+function idbPut(k,v){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+  var tx = db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k);
+  tx.oncomplete = function(){ res(); }; tx.onerror = function(){ rej(tx.error); };
+});});}
+function idbGet(k){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+  var tx = db.transaction('kv','readonly'); var q = tx.objectStore('kv').get(k);
+  q.onsuccess = function(){ res(q.result||null); }; q.onerror = function(){ rej(q.error); };
+});});}
+function idbDel(k){ return idbOpen().then(function(db){ return new Promise(function(res,rej){
+  var tx = db.transaction('kv','readwrite'); tx.objectStore('kv').delete(k);
+  tx.oncomplete = function(){ res(); }; tx.onerror = function(){ rej(tx.error); };
+});});}
+
+function weatherName(k){ var w = WEATHERS.filter(function(x){return x.k===k;})[0]; return w ? w.n : '—'; }
+function moodName(k){ var m = MOODS.filter(function(x){return x.k===k;})[0]; return m ? m.n : '—'; }
+function imgExt(im){
+  var u = (im && im.dataUrl) || '';
+  var m = /^data:image\/([a-z0-9.+-]+)/i.exec(u);
+  var t = (m ? m[1] : 'jpeg').toLowerCase();
+  if(t === 'jpeg' || t === 'jpg') return 'jpg';
+  if(t === 'svg+xml') return 'svg';
+  return t.replace(/[^a-z0-9]/g,'') || 'jpg';
+}
+function fileStem(k){return String(k).replace('#','-');}
+function dayMarkdown(k,e){
+  var date = entryDay(k), no = entryNo(k), f = fmtCN(date), out = [];
+  out.push('# ' + f.y + ' 年 ' + f.m + ' 月 ' + f.d + ' 日　' + f.w + (no > 1 ? ('（第 ' + no + ' 篇）') : ''));
+  out.push('');
+  if(e.title) out.push('## ' + e.title, '');
+  out.push('- 天气：' + weatherName(e.weather) + '　心境：' + moodName(e.mood));
+  out.push('- 标签：' + ((e.tags && e.tags.length) ? e.tags.join('、') : '—'));
+  out.push('- 字数：' + (e.words || countWords(e.content || '')) + '　最后保存：' + (e.updatedAt ? fmtTime(e.updatedAt) : '—'));
+  out.push('');
+  out.push((e.content || '').replace(/\r\n/g,'\n'));
+  var imgs = e.images || [];
+  if(imgs.length){
+    out.push('');
+    for(var i=0;i<imgs.length;i++){
+      out.push('![图' + (i+1) + '](images/' + fileStem(k) + '-' + (i+1) + '.' + imgExt(imgs[i]) + ')');
+    }
+  }
+  out.push('');
+  return out.join('\n');
+}
+async function fsWrite(dir,name,data){
+  var fh = await dir.getFileHandle(name,{create:true});
+  var w = await fh.createWritable();
+  await w.write(data);
+  await w.close();
+}
+async function fsSubdir(dir,name){ return dir.getDirectoryHandle(name,{create:true}); }
+async function fsPermission(handle,interactive){
+  try{
+    if(await handle.queryPermission({mode:'readwrite'}) === 'granted') return true;
+    if(!interactive) return false;
+    return (await handle.requestPermission({mode:'readwrite'})) === 'granted';
+  }catch(e){ return false; }
+}
+async function syncFolder(interactive){
+  if(!dirHandle) return;
+  if(syncing){ syncPending = true; return; }
+  syncing = true;
+  try{
+    if(!(await fsPermission(dirHandle, !!interactive))){
+      if(interactive) toast('需要重新授权这个文件夹');
+      updateStorageUI('need');
+      return;
+    }
+    await fsWrite(dirHandle,'白色相簿日记.json',JSON.stringify(DB,null,2));
+    await fsWrite(dirHandle,'垃圾桶.json',JSON.stringify(TRASH,null,2));
+    var dayDir = await fsSubdir(dirHandle,'日记');
+    for(var k in DB){
+      var e = DB[k]; if(!e) continue;
+      var snap = JSON.stringify(e);
+      if(lastSynced[k] === snap) continue;
+      if(!e.content && !(e.images && e.images.length) && !(e.tags && e.tags.length)){ lastSynced[k] = snap; continue; }
+      await fsWrite(dayDir, fileStem(k) + '.md', dayMarkdown(k,e));
+      var imgs = e.images || [];
+      if(imgs.length){
+        var imgDir = await fsSubdir(dayDir,'images');
+        for(var i=0;i<imgs.length;i++){
+          var im = imgs[i]; if(!im || !im.dataUrl) continue;
+          try{
+            var blob = await (await fetch(im.dataUrl)).blob();
+            await fsWrite(imgDir, fileStem(k) + '-' + (i+1) + '.' + imgExt(im), blob);
+          }catch(err){}
+        }
+      }
+      lastSynced[k] = snap;
+    }
+    saveSynced();
+    updateStorageUI('ok');
+  }catch(err){
+    updateStorageUI('error');
+  }finally{
+    syncing = false;
+    if(syncPending){ syncPending = false; if(dirHandle) syncFolder(false); }
+  }
+}
+function queueFolderSync(){
+  if(!dirHandle) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(function(){ syncFolder(false); },400);
+}
+function updateStorageUI(state){
+  var label = document.getElementById('storageLabel');
+  var btn = document.getElementById('storageBtn');
+  var note = document.getElementById('sideNote');
+  if(label){
+    if(!dirHandle) label.textContent = '存储位置';
+    else if(state === 'need') label.textContent = '存储：待授权';
+    else label.textContent = '存储：' + (dirHandle.name || '文件夹');
+  }
+  if(btn) btn.classList.toggle('on', !!dirHandle);
+  if(note){
+    note.innerHTML = dirHandle
+      ? '日记会同步到你选的文件夹，<br>过往之日一经封存便不可修改。'
+      : '日记仅保存在此浏览器本地，<br>过往之日一经封存便不可修改。';
+  }
+}
+function describeStorage(){
+  var d = document.getElementById('storageDesc'); if(!d) return;
+  if(!FS_SUPPORTED){
+    d.innerHTML = '当前浏览器不支持直接写入本地文件夹（需要 Edge 或 Chrome）。<br>你仍然可以用侧栏的「导出日记备份」把数据手动存到磁盘。';
+    return;
+  }
+  if(dirHandle){
+    d.innerHTML = '日记现在会同时写两份：<br>① 浏览器本地存储（页面读取用）<br>② 你选的文件夹「<b>' + esc(dirHandle.name || '') + '</b>」，每次保存自动更新 <code>白色相簿日记.json</code>，并按日期生成 <code>日记/YYYY-MM-DD.md</code>，图片放在 <code>日记/images/</code>。';
+  }else{
+    d.innerHTML = '目前日记只保存在<b>这个浏览器</b>里：换浏览器、换电脑或清理浏览数据都会丢，容量也只有 5MB 左右。<br>选一个本地文件夹后，每次保存都会自动同步进去，数据就归你自己管。';
+  }
+}
+document.getElementById('storageBtn').addEventListener('click',function(){
+  describeStorage();
+  document.getElementById('storageModal').style.display = 'flex';
+});
+document.getElementById('storageCancel').addEventListener('click',function(){
+  document.getElementById('storageModal').style.display = 'none';
+});
+document.getElementById('storageModal').addEventListener('click',function(){ this.style.display='none'; });
+document.getElementById('storagePick').addEventListener('click',async function(){
+  if(!FS_SUPPORTED){ toast('当前浏览器不支持选择文件夹'); return; }
+  try{
+    var h = await window.showDirectoryPicker({id:'yuki-diary',mode:'readwrite',startIn:'documents'});
+    dirHandle = h;
+    lastSynced = {};
+    try{ await idbPut('dir',h); }catch(e){}
+    await syncFolder(true);
+    updateStorageUI('ok');
+    describeStorage();
+    if(dirHandle) toast('已连接文件夹：' + (dirHandle.name || ''));
+  }catch(e){
+    if(e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return;
+    toast('选择文件夹失败');
+  }
+});
+document.getElementById('storageReset').addEventListener('click',async function(){
+  dirHandle = null; lastSynced = {};
+  try{ await idbDel('dir'); }catch(e){}
+  saveSynced();
+  updateStorageUI('browser');
+  describeStorage();
+  toast('已改回浏览器本地存储');
+});
+(async function restoreFolderHandle(){
+  try{
+    var h = await idbGet('dir');
+    if(h && typeof h.queryPermission === 'function'){
+      dirHandle = h;
+      var st = 'prompt';
+      try{ st = await h.queryPermission({mode:'readwrite'}); }catch(e){}
+      updateStorageUI(st === 'granted' ? 'ok' : 'need');
+      return;
+    }
+  }catch(e){}
+  updateStorageUI('browser');
+})();
+/* 便于排查/手动测试的内置钩子 */
+window.__diaryFS = { md: dayMarkdown, sync: syncFolder, use: function(h){ dirHandle = h; lastSynced = {}; updateStorageUI('ok'); } };
 
 /* ================= 启动 ================= */
 applyRoute();
