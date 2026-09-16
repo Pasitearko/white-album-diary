@@ -256,10 +256,16 @@ body[data-theme="dark"] .view-head::before{
   display:flex;flex-direction:column;min-height:calc(100vh - 210px);
 }
 .diary-title{
-  display:block;width:100%;max-width:900px;margin:0 auto;border:none;border-bottom:1px solid var(--line-soft);
-  padding:26px 36px 18px;font-family:var(--serif);font-size:20px;letter-spacing:2px;
-  background:transparent;font-weight:500;
+  display:block;width:100%;max-width:900px;margin:22px auto 0;
+  border:1px solid rgba(132,173,204,.55);border-radius:14px;
+  padding:22px 30px 16px;font-family:var(--serif);font-size:20px;letter-spacing:2px;
+  background-color:rgba(255,255,255,.50);font-weight:500;
+  transition:border-color var(--dur) var(--ease-soft),box-shadow var(--dur) var(--ease-soft),
+             background-color var(--dur) var(--ease-soft);
 }
+.diary-title:focus{outline:none;border-color:var(--ice-deep);box-shadow:0 0 0 3px rgba(94,143,179,.14)}
+body[data-theme="dark"] .diary-title{border-color:rgba(126,169,201,.42);background-color:rgba(20,36,52,.5)}
+body[data-theme="dark"] .diary-title:focus{border-color:var(--ice);box-shadow:0 0 0 3px rgba(126,169,201,.18)}
 .diary-title::placeholder{color:#b7c9d6;font-weight:300}
 .diary-body{
   display:block;width:100%;max-width:900px;margin:0 auto;flex:1;border:none;resize:none;min-height:380px;
@@ -270,7 +276,7 @@ body[data-theme="dark"] .view-head::before{
 /* ===== 写作工具栏 ===== */
 .toolbar{
   display:flex;align-items:center;gap:4px;flex-wrap:wrap;
-  max-width:900px;margin:0 auto;width:100%;
+  max-width:900px;margin:14px auto 0;width:100%;
   padding:0 36px 6px;
 }
 .tool-btn{
@@ -592,11 +598,13 @@ body[data-theme="dark"] .view-head::before{
   box-shadow:var(--glass-shadow-sm);
 }
 /* 数量多的小元素只用半透明+高光，避免几十层模糊拖慢渲染 */
-.tool-btn,.entry-item,.r-tag,.tag-filter .tchip,.ei-tag,.tag-chip{
+.entry-item,.r-tag,.tag-filter .tchip,.ei-tag,.tag-chip{
   background-color:var(--glass-bg-soft);
   background-image:var(--glass-sheen-soft);
   border-color:var(--glass-border);
 }
+/* 工具栏按钮保持"无框"的干净状态，只在悬停/选中时浮出玻璃底 */
+.tool-btn{background-color:transparent;background-image:none;border-color:transparent}
 .entry-item,.modal-box{border-radius:var(--radius-md)}
 .r-tag,.ei-tag,.tag-chip{border-radius:999px}
 
