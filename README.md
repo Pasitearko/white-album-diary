@@ -12,6 +12,7 @@
 ![single file](https://img.shields.io/badge/app-single%20HTML%20file-5E8FB3)
 ![data stays local](https://img.shields.io/badge/data-stays%20local-blueviolet)
 ![demo](https://img.shields.io/badge/demo-GitHub%20Pages-2ea44f?logo=github)
+![license](https://img.shields.io/badge/license-MIT-blue)
 
 <img src="docs/shot-today.png" alt="今日执笔" width="860">
 
@@ -172,13 +173,17 @@ GitHub Pages 有缓存，下拉刷新或强刷一次。
 - **2026-09-19** 正文排版升级：字号 / 字重下拉选择器，改用真正的思源宋体可变字重
 - **2026-09-16** 移动端重构：顶栏重排、触屏交互、垃圾桶壁纸
 
+## 许可证
+
+本项目采用 [MIT License](LICENSE)：可以自由使用、修改、分发，包括商业用途，只需保留版权声明。许可证只覆盖**代码**；壁纸、唱片封面与音乐素材的版权归原作者，不在授权范围内。
+
 ## 致谢与声明
 
 - 名字与气质来自《WHITE ALBUM 2》，音乐版权归 AQUAPLUS 所有，本项目是非商业的个人练习
 - 雨声来自 [Rainy Mood](https://rainymood.com/)
 - 字体为思源宋体（SIL Open Font License 1.1）；图表 [ECharts](https://echarts.apache.org/)（Apache-2.0）、长图导出 [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro)（MIT）
 - 壁纸与封面图片来自网络，版权归原作者所有，仅供个人学习与欣赏，请勿商用
-- 本项目未附带开源许可证。如需复用代码或用于其它用途，请先联系作者：hilko@qq.com
+- 反馈与建议：hilko@qq.com
 
 ---
 
@@ -305,10 +310,14 @@ GitHub Pages caches aggressively — pull to refresh or hard-refresh once.
 **“Storage” says it is not supported.**
 Folder sync needs desktop Edge / Chrome. Elsewhere, use “export backup” to save manually.
 
+## License
+
+Released under the [MIT License](LICENSE) — free to use, modify and distribute, including commercially, as long as the copyright notice is kept. The license covers the **code** only; the wallpaper, cover art and music remain the property of their original authors and are not covered by it.
+
 ## Credits
 
 - Name and mood inspired by *WHITE ALBUM 2*; the music belongs to AQUAPLUS. This is a non-commercial personal practice project.
 - Rain sound from [Rainy Mood](https://rainymood.com/)
 - Typeface: Noto Serif SC (SIL Open Font License 1.1); charts by [ECharts](https://echarts.apache.org/) (Apache-2.0); long-image export by [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) (MIT)
 - Wallpaper and cover images come from the internet and remain the property of their original authors; they are included for personal, non-commercial use only
-- No open-source license is attached to this repository. If you want to reuse the code or use it for something else, please contact the author first: hilko@qq.com
+- Feedback and suggestions: hilko@qq.com
