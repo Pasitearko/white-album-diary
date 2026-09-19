@@ -179,7 +179,7 @@ GitHub Pages 有缓存，下拉刷新或强刷一次。
 
 ## 致谢与声明
 
-- 名字与气质来自《WHITE ALBUM 2》，音乐版权归 AQUAPLUS 所有，本项目是非商业的个人练习
+- 名字与图片来自《WHITE ALBUM 2》，音乐版权归 AQUAPLUS 所有，本项目是出于热爱的非商业的个人练习
 - 雨声来自 [Rainy Mood](https://rainymood.com/)
 - 字体为思源宋体（SIL Open Font License 1.1）；图表 [ECharts](https://echarts.apache.org/)（Apache-2.0）、长图导出 [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro)（MIT）
 - 壁纸与封面图片来自网络，版权归原作者所有，仅供个人学习与欣赏，请勿商用
