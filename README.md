@@ -100,7 +100,7 @@
 
 ### 氛围
 
-- **背景音**：After All〜綴る想い〜 (Inst.)（WHITE ALBUM 2 OST）或 Rainy Mood 雨声，带音量条；触屏设备上点唱片先展开面板，再点播放 / 暂停
+- **背景音**：After All〜綴る想い〜 (Inst.)（WHITE ALBUM 2 OST）或雨声，带音量条；触屏设备上点唱片先展开面板，再点播放 / 暂停
 - **壁纸随视图切换**：今日执笔按日期在日常 / CG 之间轮换，翻阅过往是小镇静景，写作统计是夜空，垃圾桶是那张专用的
 - **落雪与浮光**：Canvas 绘制的雪花，跟随窗口尺寸重排；页面切到后台会暂停，并尊重系统的「减少动态效果」设置
 
@@ -140,11 +140,23 @@ white-album-diary/
 ├── wallpaper-town.jpg      壁纸 · 小镇（翻阅过往）
 ├── wallpaper-night.jpg     壁纸 · 夜空（写作统计）
 ├── wallpaper-trash.jpg     壁纸 · 垃圾桶
+├── wallpaper-*.webp        同一批壁纸的 WebP 版（页面实际加载的就是这些）
 ├── cover-introductory.jpg  唱片封面 · 背景音乐
 ├── cover-rain.svg          唱片封面 · 雨声
 ├── docs/                   README 用截图
 └── README.md
 ```
+
+## 网络与加载
+
+站点托管在 GitHub Pages，但不会把图片和依赖都压在 github.io 上：
+
+- 第三方库（ECharts、html2canvas-pro）优先走国内镜像（阿里 npmmirror），实测 388KB 的 ECharts 只要 0.2 秒；取不到时自动回落到 jsDelivr
+- 壁纸改成用到哪张才下载哪张，并且是 WebP（单张 45–146KB）：线上从 jsDelivr 取，国内直连实测 0.7 秒左右，比直连 github.io 快 7–10 倍；取不到时退回同目录文件
+- 字体留在 jsDelivr——字体文件需要跨域头，国内镜像不提供
+- 唱片封面用懒加载，页面稳定后再补下载，不占首屏带宽
+
+目前唯一还偏慢的是首页 HTML 本身（仍然来自 GitHub Pages，国内直连首次打开约 2–6 秒）。把整站搬到国内对象存储或 Cloudflare Pages 可以再进一步，但需要另外的账号，且换域名后浏览器里已有的日记需要通过「导出 / 导入备份」迁移。
 
 ## 浏览器兼容
 
@@ -160,7 +172,7 @@ white-album-diary/
 日记存在浏览器本地，需要先在旧设备「导出日记备份」，再在新设备「导入」；用过文件夹同步的话，直接在新设备重连同一个文件夹也可以。
 
 **背景音点了没反应？**
-音乐是网易云外链、雨声来自 Rainy Mood，都需要联网；浏览器也要求先有用户交互才允许播放。手机上的静音开关同样会拦住它。
+音乐与雨声都是网易云的外链（国内可直连），需要联网；浏览器也要求先有用户交互才允许播放。手机上的静音开关同样会拦住它。雨声在音源失效时会自动回落到 Rainy Mood。
 
 **手机上看到的还是旧版？**
 GitHub Pages 有缓存，下拉刷新或强刷一次。
@@ -179,8 +191,8 @@ GitHub Pages 有缓存，下拉刷新或强刷一次。
 
 ## 致谢与声明
 
-- 名字与图片来自《WHITE ALBUM 2》，音乐版权归 AQUAPLUS 所有，本项目是出于热爱的非商业的个人练习
-- 雨声来自 [Rainy Mood](https://rainymood.com/)
+- 名字与气质来自《WHITE ALBUM 2》，音乐版权归 AQUAPLUS 所有，本项目是非商业的个人练习
+- 雨声用的是网易云音乐上的雨声音源（国内可直连），连不上时回落到 [Rainy Mood](https://rainymood.com/)
 - 字体为思源宋体（SIL Open Font License 1.1）；图表 [ECharts](https://echarts.apache.org/)（Apache-2.0）、长图导出 [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro)（MIT）
 - 壁纸与封面图片来自网络，版权归原作者所有，仅供个人学习与欣赏，请勿商用
 - 反馈与建议：hilko@qq.com
@@ -246,7 +258,7 @@ Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*: a serif Chin
 
 ### Atmosphere
 
-- **Background audio** — *After All〜綴る想い〜 (Inst.)* from the WHITE ALBUM 2 soundtrack, or rain from Rainy Mood, with a volume slider. On touch devices, tapping the disc opens the panel first, then plays / pauses.
+- **Background audio** — *After All〜綴る想い〜 (Inst.)* from the WHITE ALBUM 2 soundtrack, or rain, with a volume slider. On touch devices, tapping the disc opens the panel first, then plays / pauses.
 - **Wallpapers that follow the view** — the writing view alternates between two by date, the archive uses a quiet town, statistics uses a night sky, and the trash has its own
 - **Snow and drifting light** — drawn on a canvas, re-seeded on resize, paused while the tab is hidden, and skipped entirely under `prefers-reduced-motion`
 
@@ -282,11 +294,23 @@ Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*: a serif Chin
 white-album-diary/
 ├── index.html              the entire app: HTML + CSS + JS
 ├── wallpaper-*.jpg         wallpapers (day / CG / town / night / trash)
+├── wallpaper-*.webp        the WebP versions actually loaded by the page
 ├── cover-introductory.jpg  album cover for the background music
 ├── cover-rain.svg          album cover for the rain sound
 ├── docs/                   screenshots used by this README
 └── README.md
 ```
+
+## Network & loading
+
+The site is hosted on GitHub Pages, but it does not pull everything from github.io:
+
+- Libraries (ECharts, html2canvas-pro) load from a mainland-China npm mirror (Alibaba npmmirror) first — 388 KB of ECharts in ~0.2 s — falling back to jsDelivr
+- Wallpapers load only when needed, as WebP (45–146 KB each) from jsDelivr, about 7–10× faster than hitting github.io directly, with the local file as a fallback
+- The web font stays on jsDelivr, because font files need CORS headers that the npm mirror does not send
+- Album covers are lazy-loaded after the page settles, keeping them off the critical path
+
+The one remaining slow part is the HTML document itself, which still comes from GitHub Pages (roughly 2–6 s on a first visit from mainland China). Moving the whole site to a Chinese object-storage bucket or Cloudflare Pages would improve that, but it needs an extra account — and after a domain change, existing entries in the browser have to be migrated with the export / import backup.
 
 ## Browser support
 
@@ -302,7 +326,7 @@ white-album-diary/
 Entries live in the browser, so export a backup on the old machine and import it on the new one — or reconnect the same synced folder.
 
 **The background audio does not start.**
-The music is streamed from NetEase and the rain from Rainy Mood, so it needs a network connection; browsers also require a user interaction before playing audio. The silent switch on phones will block it too.
+Both the music and the rain are streamed from NetEase Cloud Music, so they need a network connection; browsers also require a user interaction before playing audio. The silent switch on phones will block it too. If the rain source ever goes away, it falls back to Rainy Mood automatically.
 
 **My phone still shows the old version.**
 GitHub Pages caches aggressively — pull to refresh or hard-refresh once.
@@ -317,7 +341,7 @@ Released under the [MIT License](LICENSE) — free to use, modify and distribute
 ## Credits
 
 - Name and mood inspired by *WHITE ALBUM 2*; the music belongs to AQUAPLUS. This is a non-commercial personal practice project.
-- Rain sound from [Rainy Mood](https://rainymood.com/)
+- Rain: a track hosted on NetEase Cloud Music (reachable from mainland China), falling back to [Rainy Mood](https://rainymood.com/)
 - Typeface: Noto Serif SC (SIL Open Font License 1.1); charts by [ECharts](https://echarts.apache.org/) (Apache-2.0); long-image export by [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) (MIT)
 - Wallpaper and cover images come from the internet and remain the property of their original authors; they are included for personal, non-commercial use only
 - Feedback and suggestions: hilko@qq.com
