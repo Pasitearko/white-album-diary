@@ -2,7 +2,7 @@
 
 Issues and specs for this repo live as GitHub issues in **`Pasitearko/white-album-diary`**. Use the `gh` CLI for all operations.
 
-**Always pass `--repo Pasitearko/white-album-diary`.** This working copy (`D:\日记网站`) is not a git clone — there is no `.git` and no `origin` remote — so `gh` cannot infer the repository from `git remote -v`. Every command below therefore states the repo explicitly. If this directory is ever turned into a clone (`git init` + `git remote add origin`), the flag becomes optional but harmless.
+**Always pass `--repo Pasitearko/white-album-diary`.** This working copy (`D:\日记网站`) is now a git clone — `origin` is `https://github.com/Pasitearko/white-album-diary.git` and `main` tracks `origin/main` — so `gh` can infer the repository from `git remote -v` while the session's working directory is inside it. The flag is kept on every command anyway, because it also makes them work from a session whose working directory is elsewhere (e.g. `D:\DeepSeek harness`), where inference would either fail or resolve to the wrong repository.
 
 ## Conventions
 
