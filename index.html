@@ -195,6 +195,8 @@ input,textarea{font-family:inherit;color:inherit}
 }
 .nav-item.active svg{opacity:1}
 .side-foot{margin-top:auto;padding-top:20px}
+.side-tool-list{display:block}
+.mobile-more-toggle{display:none}
 .side-foot button,.side-quick{
   display:flex;align-items:center;gap:9px;width:100%;
   font-size:13px;font-weight:500;color:var(--ink-faint);letter-spacing:1px;
@@ -413,6 +415,20 @@ body[data-theme="dark"] .tool-select option{background:#15283d;color:#dce7f1}
 .modal-desc{font-size:12.5px;line-height:1.9;color:var(--ink-soft);margin-bottom:20px;letter-spacing:.5px}
 .modal-desc code{font-size:12px;background:rgba(132,173,204,.16);border-radius:5px;padding:1px 6px;color:var(--ice-night)}
 .modal-desc b{color:var(--ink);font-weight:500}
+.storage-status{
+  margin:-4px 0 17px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;
+  background:var(--glass-bg-soft);font-size:12px;line-height:1.55;color:var(--ink-soft);
+}
+.storage-status-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0}
+.storage-status-row + .storage-status-row{border-top:1px solid var(--line-soft)}
+.storage-status-label{color:var(--ink-faint);letter-spacing:.4px;white-space:nowrap}
+.storage-status-value{display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0;text-align:right;color:var(--ink-soft)}
+.storage-status-value::before{content:'';flex:0 0 auto;width:6px;height:6px;border-radius:50%;background:var(--ink-faint);opacity:.78}
+.storage-status-time{min-width:0;text-align:right;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.storage-status-value.is-ok::before{background:#6eaa87}
+.storage-status-value.is-wait::before{background:#d0a255}
+.storage-status-value.is-error::before{background:#c87872}
+.storage-status-detail{margin-top:6px;padding-top:7px;border-top:1px solid var(--line-soft);color:var(--ink-faint);font-size:11.5px;line-height:1.65}
 .modal-actions-wrap{flex-wrap:wrap}
 .modal-danger{background:linear-gradient(120deg,#c2706f,#a9534f);color:#fff;border:none;box-shadow:0 4px 12px rgba(160,70,70,.28)}
 .modal-danger:hover{transform:translateY(-1px)}
@@ -1082,19 +1098,36 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
     padding:9px 4px;font-size:12px;letter-spacing:.5px;min-height:54px;white-space:nowrap;
   }
   .nav-item svg{width:16px;height:16px}
-  /* 底部工具不再隐藏：变成一排可以横向滑动的小胶囊，夜间模式/背景音都在这里 */
+  /* 低频工具收进可展开的“更多”，背景音仍留在顶栏作为快捷入口。 */
   .side-foot{
     grid-area:foot;display:flex;width:100%;margin:0;padding:2px 0;
-    flex-wrap:wrap;gap:7px;
+    flex-direction:column;align-items:stretch;gap:7px;
   }
   .side-foot button{
     width:auto;flex:0 0 auto;justify-content:center;gap:6px;
     padding:7px 11px;font-size:12px;letter-spacing:.3px;min-height:36px;
     border:1px solid var(--line);background:var(--glass-bg-strong);border-radius:999px;
   }
-  /* 手机上把长标签换成短名，工具行从三行压到两行 */
+  .mobile-more-toggle{
+    display:flex!important;width:100%;align-items:center;justify-content:center;gap:7px;
+    color:var(--ink-soft);
+  }
+  .mobile-more-toggle .more-chevron{transition:transform var(--dur-fast) var(--ease-out)}
+  .side-foot.mobile-more-open .mobile-more-toggle .more-chevron{transform:rotate(180deg)}
+  .side-tool-list{
+    display:none;width:100%;flex-wrap:wrap;gap:7px;padding:8px;
+    border:1px solid var(--line-soft);border-radius:12px;background:var(--glass-bg-soft);
+  }
+  .side-foot.mobile-more-open .side-tool-list{display:flex;animation:veil .2s var(--ease-out) both}
+  .side-tool-list button{flex:1 1 calc(50% - 4px);min-width:0}
+  /* 手机上把长标签换成短名；存储状态保留原始动态文本。 */
   .side-foot .lbl,.side-mail .lbl{display:none}
   .side-foot [data-short]::after,.side-mail[data-short]::after{content:attr(data-short);font-size:12px;letter-spacing:.3px}
+  .side-tool-list #storageBtn{justify-content:flex-start}
+  .side-tool-list #storageBtn::after{display:none}
+  .side-tool-list #storageLabel{
+    display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
   .side-note{display:none}
   .side-mail{
     flex:0 0 auto;margin:0;padding:7px 10px;font-size:12px;min-height:34px;
@@ -1221,6 +1254,12 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
       </button>
     </nav>
     <div class="side-foot">
+      <button type="button" class="mobile-more-toggle" id="mobileMoreToggle" aria-controls="sideToolList" aria-expanded="false" aria-label="展开更多工具">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+        <span>更多工具</span>
+        <svg class="more-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="side-tool-list" id="sideToolList" role="group" aria-label="更多工具"></div>
       <button id="storageBtn" data-short="存储" title="选择日记的本地存储位置">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.2l1.6 2H18a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 19H5.5A2.5 2.5 0 0 1 3 16.5z"/></svg>
         <span class="lbl" id="storageLabel">存储位置</span>
@@ -1233,9 +1272,9 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
         <span class="lbl">导入日记备份</span>
       </button>
-      <button id="themeBtn">
+      <button id="themeBtn" data-short="主题">
         <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        <span id="themeLabel">夜间模式</span>
+        <span class="lbl" id="themeLabel">夜间模式</span>
       </button>
     </div>
     <!-- 触屏顶栏会把这枚按钮和邮箱挪到日期左边，桌面端仍在底部这一组里 -->
@@ -1584,7 +1623,8 @@ body[data-theme="dark"] .shot-sep{background:#2b4a68}
 <!-- 存储位置弹窗 -->
 <div class="modal-mask" id="storageModal" style="display:none">
   <div class="modal-box" onclick="event.stopPropagation()">
-    <h4>日记存储位置</h4>
+    <h4>日记存储与备份</h4>
+    <div class="storage-status" id="storageStatus" aria-live="polite"></div>
     <p class="modal-desc" id="storageDesc"></p>
     <div class="modal-actions modal-actions-wrap">
       <button class="modal-cancel" id="storageReset">只用浏览器存储</button>
@@ -3398,6 +3438,7 @@ document.getElementById('exportBtn').addEventListener('click',function(){
   a.download='白色相簿备份-'+todayKey()+'.json';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
+  recordBackupExport();
   toast('备份文件已下载');
 });
 
@@ -3541,9 +3582,90 @@ document.getElementById('trashEmpty').addEventListener('click',function(){
 /* ================= 本地文件夹存储（File System Access API） ================= */
 var FS_SUPPORTED = typeof window.showDirectoryPicker === 'function';
 var SYNC_KEY = 'yuki_synced_v1';
-var dirHandle = null, syncTimer = 0, syncing = false, syncPending = false;
+var STORAGE_STATUS_KEY = 'yuki_storage_status_v1';
+var dirHandle = null, syncTimer = 0, syncing = false, syncPending = false, folderSyncState = 'browser';
 var lastSynced = (function(){ try{ return JSON.parse(localStorage.getItem(SYNC_KEY))||{}; }catch(e){ return {}; } })();
 function saveSynced(){ try{ localStorage.setItem(SYNC_KEY, JSON.stringify(lastSynced)); }catch(e){} }
+var storageStatus = (function(){
+  try{
+    var saved = JSON.parse(localStorage.getItem(STORAGE_STATUS_KEY));
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+  }catch(e){ return {}; }
+})();
+function saveStorageStatus(){ try{ localStorage.setItem(STORAGE_STATUS_KEY,JSON.stringify(storageStatus)); }catch(e){} }
+function storageErrorText(err,scope){
+  var name = err && err.name ? err.name : '';
+  if(name === 'QuotaExceededError') return scope === 'folder' ? '目标文件夹空间不足' : '浏览器存储空间不足';
+  if(name === 'NotAllowedError' || name === 'SecurityError') return scope === 'folder' ? '没有写入文件夹的权限' : '浏览器阻止了本地存储';
+  return scope === 'folder' ? '文件夹写入失败，请稍后重试' : '浏览器本地保存失败，请检查隐私设置或可用空间';
+}
+function statusTime(value){ return value && !isNaN(Number(value)) ? fmtTime(Number(value)) : '尚无记录'; }
+function markBrowserStorageSuccess(){
+  storageStatus.localState = 'ok';
+  storageStatus.localLastSuccess = Date.now();
+  storageStatus.localError = '';
+  saveStorageStatus();
+  if(document.getElementById('storageBtn')) updateStorageUI(folderSyncState);
+}
+function markBrowserStorageError(err){
+  storageStatus.localState = 'error';
+  storageStatus.localError = storageErrorText(err,'local');
+  saveStorageStatus();
+  if(document.getElementById('storageBtn')) updateStorageUI(folderSyncState);
+}
+function recordBackupExport(){
+  storageStatus.exportLastSuccess = Date.now();
+  saveStorageStatus();
+  renderStorageStatus();
+}
+function setFolderSyncState(state,err){
+  folderSyncState = state;
+  storageStatus.folderState = state;
+  if(state === 'ok'){
+    storageStatus.folderLastSuccess = Date.now();
+    storageStatus.folderError = '';
+  }else if(state === 'need'){
+    storageStatus.folderError = '需要授权后才能写入所选文件夹';
+  }else if(state === 'error'){
+    storageStatus.folderError = storageErrorText(err,'folder');
+  }
+  saveStorageStatus();
+  updateStorageUI(state);
+}
+function renderStorageStatus(){
+  var box = document.getElementById('storageStatus'); if(!box) return;
+  var localError = storageStatus.localState === 'error';
+  var localText = localError ? '保存失败' : '已启用';
+  var localClass = localError ? 'is-error' : 'is-ok';
+  var folderText = '未连接', folderClass = 'is-wait', detail = '';
+  if(dirHandle){
+    if(folderSyncState === 'need'){
+      folderText = '需要授权'; folderClass = 'is-wait';
+      detail = storageStatus.folderError || '重新选择该文件夹并授权后，保存内容会自动同步。';
+    }else if(folderSyncState === 'error'){
+      folderText = '同步失败'; folderClass = 'is-error';
+      detail = storageStatus.folderError || '上次自动同步未完成，请稍后再次保存或重新选择文件夹。';
+    }else if(folderSyncState === 'syncing'){
+      folderText = '正在同步'; folderClass = 'is-wait';
+      detail = '正在把本机最新的日记写入「'+esc(dirHandle.name || '所选文件夹')+'」。';
+    }else if(folderSyncState === 'ready'){
+      folderText = '已连接，等待同步'; folderClass = 'is-wait';
+      detail = '下次保存日记时会自动同步到「'+esc(dirHandle.name || '所选文件夹')+'」。';
+    }else{
+      folderText = '已同步'; folderClass = 'is-ok';
+      detail = '日记会同时保存在本机和「'+esc(dirHandle.name || '所选文件夹')+'」。';
+    }
+  }else{
+    detail = '日记目前只保存在这个浏览器中；建议定期导出备份，或连接一个本地文件夹。';
+  }
+  if(localError) detail = storageStatus.localError || detail;
+  box.innerHTML =
+    '<div class="storage-status-row"><span class="storage-status-label">浏览器本地存储</span><span class="storage-status-value '+localClass+'">'+localText+'</span></div>'+
+    '<div class="storage-status-row"><span class="storage-status-label">文件夹同步</span><span class="storage-status-value '+folderClass+'">'+folderText+'</span></div>'+
+    '<div class="storage-status-row"><span class="storage-status-label">上次成功同步</span><span class="storage-status-time">'+(dirHandle ? statusTime(storageStatus.folderLastSuccess) : '未连接文件夹')+'</span></div>'+
+    '<div class="storage-status-row"><span class="storage-status-label">上次导出备份</span><span class="storage-status-time">'+statusTime(storageStatus.exportLastSuccess)+'</span></div>'+
+    '<div class="storage-status-detail">'+detail+'</div>';
+}
 
 function idbOpen(){
   return new Promise(function(res,rej){
@@ -3612,14 +3734,15 @@ async function fsPermission(handle,interactive){
   }catch(e){ return false; }
 }
 async function syncFolder(interactive){
-  if(!dirHandle) return;
-  if(syncing){ syncPending = true; return; }
+  if(!dirHandle) return false;
+  if(syncing){ syncPending = true; return false; }
   syncing = true;
+  setFolderSyncState('syncing');
   try{
     if(!(await fsPermission(dirHandle, !!interactive))){
       if(interactive) toast('需要重新授权这个文件夹');
-      updateStorageUI('need');
-      return;
+      setFolderSyncState('need');
+      return false;
     }
     await fsWrite(dirHandle,'白色相簿日记.json',JSON.stringify(DB,null,2));
     await fsWrite(dirHandle,'垃圾桶.json',JSON.stringify(TRASH,null,2));
@@ -3644,9 +3767,11 @@ async function syncFolder(interactive){
       lastSynced[k] = snap;
     }
     saveSynced();
-    updateStorageUI('ok');
+    setFolderSyncState('ok');
+    return true;
   }catch(err){
-    updateStorageUI('error');
+    setFolderSyncState('error',err);
+    return false;
   }finally{
     syncing = false;
     if(syncPending){ syncPending = false; if(dirHandle) syncFolder(false); }
@@ -3661,20 +3786,43 @@ function updateStorageUI(state){
   var label = document.getElementById('storageLabel');
   var btn = document.getElementById('storageBtn');
   var note = document.getElementById('sideNote');
+  state = state || folderSyncState;
+  var labelText = '存储：本机', buttonTitle = '日记保存在此浏览器本地，点击查看存储与备份状态';
+  if(dirHandle){
+    if(state === 'need'){
+      labelText = '存储：待授权'; buttonTitle = '所选文件夹需要重新授权，点击查看详情';
+    }else if(state === 'error'){
+      labelText = '存储：同步失败'; buttonTitle = '上次同步失败，点击查看详情';
+    }else if(state === 'syncing'){
+      labelText = '存储：同步中'; buttonTitle = '正在同步到「'+(dirHandle.name || '所选文件夹')+'」';
+    }else if(state === 'ready'){
+      labelText = '存储：已连接'; buttonTitle = '已连接「'+(dirHandle.name || '所选文件夹')+'」，等待下一次同步';
+    }else{
+      labelText = '存储：' + (dirHandle.name || '文件夹'); buttonTitle = '已同步到「'+(dirHandle.name || '所选文件夹')+'」';
+    }
+  }
   if(label){
-    if(!dirHandle) label.textContent = '存储位置';
-    else if(state === 'need') label.textContent = '存储：待授权';
-    else label.textContent = '存储：' + (dirHandle.name || '文件夹');
+    label.textContent = labelText;
   }
-  if(btn) btn.classList.toggle('on', !!dirHandle);
+  if(btn){
+    btn.classList.toggle('on', !!dirHandle);
+    btn.title = buttonTitle;
+    btn.setAttribute('aria-label',buttonTitle);
+  }
   if(note){
-    note.innerHTML = dirHandle
-      ? '日记会同步到你选的文件夹，<br>过往之日一经封存便不可修改。'
-      : '日记仅保存在此浏览器本地，<br>过往之日一经封存便不可修改。';
+    var localNote = storageStatus.localState === 'error' ? '浏览器本地保存失败。' : '浏览器本地存储已启用。';
+    var folderNote = !dirHandle ? '文件夹尚未连接，请定期导出备份。' :
+      (state === 'need' ? '文件夹需要重新授权。' :
+      (state === 'error' ? '文件夹同步失败，请查看详情。' :
+      (state === 'syncing' ? '正在同步到所选文件夹。' :
+      (state === 'ready' ? '文件夹已连接，等待下次同步。' : '文件夹同步正常。'))));
+    note.innerHTML = localNote+'<br>'+folderNote;
   }
+  renderStorageStatus();
 }
 function describeStorage(){
   var d = document.getElementById('storageDesc'); if(!d) return;
+  renderStorageStatus();
   if(!FS_SUPPORTED){
     d.innerHTML = '当前浏览器不支持直接写入本地文件夹（需要 Edge 或 Chrome）。<br>你仍然可以用侧栏的「导出日记备份」把数据手动存到磁盘。';
     return;
@@ -3699,11 +3847,13 @@ document.getElementById('storagePick').addEventListener('click',async function()
     var h = await window.showDirectoryPicker({id:'yuki-diary',mode:'readwrite',startIn:'documents'});
     dirHandle = h;
     lastSynced = {};
+    storageStatus.folderLastSuccess = null;
+    storageStatus.folderError = '';
+    saveStorageStatus();
     try{ await idbPut('dir',h); }catch(e){}
-    await syncFolder(true);
-    updateStorageUI('ok');
+    var synced = await syncFolder(true);
     describeStorage();
-    if(dirHandle) toast('已连接文件夹：' + (dirHandle.name || ''));
+    if(dirHandle) toast(synced ? '已连接文件夹并完成同步' : '文件夹已连接，但尚未完成同步');
   }catch(e){
     if(e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return;
     toast('选择文件夹失败');
@@ -3713,7 +3863,7 @@ document.getElementById('storageReset').addEventListener('click',async function(
   dirHandle = null; lastSynced = {};
   try{ await idbDel('dir'); }catch(e){}
   saveSynced();
-  updateStorageUI('browser');
+  setFolderSyncState('browser');
   describeStorage();
   toast('已改回浏览器本地存储');
 });
@@ -3724,14 +3874,61 @@ document.getElementById('storageReset').addEventListener('click',async function(
       dirHandle = h;
       var st = 'prompt';
       try{ st = await h.queryPermission({mode:'readwrite'}); }catch(e){}
-      updateStorageUI(st === 'granted' ? 'ok' : 'need');
+      if(st === 'granted'){
+        folderSyncState = storageStatus.folderState === 'error' ? 'error' : (storageStatus.folderLastSuccess ? 'ok' : 'ready');
+        updateStorageUI(folderSyncState);
+      }else{
+        setFolderSyncState('need');
+      }
       return;
     }
   }catch(e){}
   updateStorageUI('browser');
 })();
 /* 便于排查/手动测试的内置钩子 */
-window.__diaryFS = { md: dayMarkdown, sync: syncFolder, use: function(h){ dirHandle = h; lastSynced = {}; updateStorageUI('ok'); } };
+window.__diaryFS = { md: dayMarkdown, sync: syncFolder, use: function(h){ dirHandle = h; lastSynced = {}; folderSyncState = 'ready'; updateStorageUI('ready'); } };
+
+/* ================= 移动端：更多工具 ================= */
+function initMobileMore(){
+  var sideFoot=document.querySelector('.side-foot');
+  var toggle=document.getElementById('mobileMoreToggle');
+  var list=document.getElementById('sideToolList');
+  if(!sideFoot||!toggle||!list)return;
+
+  /* 兼容后续增加的低频按钮：桌面端仍是原顺序，移动端会自动归入更多菜单。 */
+  Array.prototype.slice.call(sideFoot.children).forEach(function(node){
+    if(node!==toggle&&node!==list&&node.tagName==='BUTTON')list.appendChild(node);
+  });
+
+  var media=window.matchMedia('(max-width:960px)');
+  function mobile(){return media.matches;}
+  function setOpen(open,returnFocus){
+    var next=mobile()&&!!open;
+    sideFoot.classList.toggle('mobile-more-open',next);
+    toggle.setAttribute('aria-expanded',String(next));
+    toggle.setAttribute('aria-label',next?'收起更多工具':'展开更多工具');
+    list.setAttribute('aria-hidden',mobile()?String(!next):'false');
+    if(returnFocus)toggle.focus();
+  }
+
+  toggle.addEventListener('click',function(){setOpen(!sideFoot.classList.contains('mobile-more-open'));});
+  /* 原生 button 已支持 Enter / Space；Esc、点菜单外或执行工具后收起。 */
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&sideFoot.classList.contains('mobile-more-open')){
+      setOpen(false,true);
+    }
+  });
+  document.addEventListener('click',function(e){
+    if(sideFoot.classList.contains('mobile-more-open')&&!sideFoot.contains(e.target))setOpen(false);
+  });
+  list.addEventListener('click',function(e){
+    if(mobile()&&e.target.closest('button,a'))setOpen(false);
+  });
+  if(media.addEventListener)media.addEventListener('change',function(){setOpen(false);});
+  else if(media.addListener)media.addListener(function(){setOpen(false);});
+  setOpen(false);
+}
+initMobileMore();
 
 /* ================= 启动 ================= */
 applyRoute();
