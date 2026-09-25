@@ -2567,6 +2567,184 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 </script>
 
 <script>
+/* ================= 品味库 · 备份编解码（T8 / issue #5） =================
+   全站最不能坏的一块：向后兼容一旦坏了，用户当场丢数据。
+
+      buildBackup(diary, taste, {asObject?}) -> 字符串（默认）/ 对象
+      parseBackup(raw)                       -> { version, versionAhead, diary, taste, kind, entries }
+
+   `kind` 说的是「这份备份是从什么形状认出来的」，调用方靠它决定要不要给
+   用户那句「这是旧版备份，已按日记导入」：
+     'diary'  —— 改造前的扁平纯日记备份
+     'mixed'  —— 新格式，日记与品味库都在
+     'taste'  —— 新格式，只有品味库
+     'diaryOnly' —— 新格式，只有日记
+
+   `entries` 是摊平后的导入清单 `[{ dataset, key, value }]`，两种格式都会给。
+   T9 只管遍历它落库、一套计数口径报「新增 N 篇 / 跳过 M 条」；判重键的差别
+   （日记按日期键、品味库按条目 id）留在这一层，省得界面层再抄一遍识别规则。
+   `versionAhead` 是「备份来自比本文件更新的版本」，给 T9 一句提示用；高版本
+   照样照常解析，不拒绝 —— 换机器/降级时挡在门外等于把能救的数据丢掉。
+
+   认不出来的输入抛 code='BACKUP_UNRECOGNIZED' 的错误，**绝不静默返回半截
+   数据** —— 半截数据会让调用方以为导入成功了，然后把库覆盖成空的。dataUrl 不在
+   这里碰（Blob ↔ data URL 是界面层 T9 的活），所以这一层是纯函数。
+
+   模块逻辑不碰全局对象（只用语言内建），能在 Node 里直接单测；**唯一的例外**
+   是文末那个 window.__tasteModules 交接（file:// 单文件站没有模块系统，
+   测试要拿到模块只能走这条路）。typeof window 那层判断是给非浏览器环境的
+   防御，不是第二个例外。 */
+(function () {
+  'use strict';
+
+  var BACKUP_VERSION = 1;
+  var DATE_KEY = /^\d{4}-\d{2}-\d{2}(#\d+)?$/;
+
+  function makeUnrecognizedError(detail) {
+    var err = new Error('这不是一个能认出来的备份文件' + (detail ? '：' + detail : ''));
+    err.name = 'BackupUnrecognizedError';
+    err.code = 'BACKUP_UNRECOGNIZED';
+    return err;
+  }
+
+  // 旧格式没有外层信封，日记本身就是顶层对象。判据是「**至少有一个**日期键」，
+  // 而不是「每个键都像日期键」—— 改造前的导入是 `if(!DATE_KEY.test(k))return;`，
+  // 也就是**跳过**非日期键、把其余照常导入。今天能从旧备份里救回来的文件，
+  // 升级后不能反而认不出来，所以这里跟旧行为对齐：非日期键留给调用方跳过。
+  // 代价是「既不像日期、又不是合法 JSON」的行会被跳过而不是报错，与旧版一致。
+  // 全是垃圾键（一个日期键都没有）仍然抛错 —— 空对象和垃圾对象无法与旧备份区分，
+  // 宁可抛错也不静默清库。
+  function looksLikeLegacyDiary(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    var keys = Object.keys(value);
+    for (var i = 0; i < keys.length; i++) {
+      if (DATE_KEY.test(keys[i])) return true;
+    }
+    return false;
+  }
+
+  // 新格式的信封里，两个数据集的值必须是对象（或者 null＝这份备份里没有它）。
+  // 形状不对就当场抛错，不让 T9 走到 Object.keys(undefined) 那一步才知道坏了。
+  function requireObjectOrNull(value, label) {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'object' || Array.isArray(value)) {
+      throw makeUnrecognizedError('' + label + ' 不是一个对象');
+    }
+    return value;
+  }
+
+  /* 备份格式（顶层同时装两个数据集）：
+       { version: N, diary: {...}, taste: { items: [...] } }
+
+     条目里的图片以 data URL 内联在同一个 JSON 里 —— 不加 zip、也不给
+     「是否包含图片」的开关。把 Blob 读成 data URL 是界面层（T9）的活，
+     这里只负责编解码，所以这一层能保持纯函数。 */
+  function buildBackup(diary, taste, options) {
+    var payload = {
+      version: BACKUP_VERSION,
+      diary: diary,
+      taste: taste,
+    };
+    if (options && options.asObject) return payload;
+    return JSON.stringify(payload);
+  }
+
+  /* 把两个数据集摊平成同一张导入清单，交给界面层（T9）一个循环搞定。
+
+     旧版和新版的判重键不一样：日记按日期键（`2024-01-31`、`2024-12-01#2`），
+     品味库按条目 id。但 T9 要报的「新增 N 篇 / 跳过 M 条」只有一套计数口径，
+     所以识别规则内聚在这里，输出统一的 `{ dataset, key, value }` 列表 ——
+     T9 拿到手只管遍历落库，不用自己再判断「这是哪种备份」。 */
+  function legacyEntries(diary) {
+    var out = [];
+    var keys = Object.keys(diary);
+    for (var i = 0; i < keys.length; i++) {
+      // 非日期键直接跳过：跟改造前那句 `if(!DATE_KEY.test(k))return;` 行为一致，
+      // 别让用户手加的备注键把整份备份废掉。
+      if (!DATE_KEY.test(keys[i])) continue;
+      out.push({ dataset: 'diary', key: keys[i], value: diary[keys[i]] });
+    }
+    return out;
+  }
+
+  function newFormatEntries(diary, taste) {
+    var out = [];
+    if (diary) {
+      var dk = Object.keys(diary);
+      for (var i = 0; i < dk.length; i++) {
+        if (!DATE_KEY.test(dk[i])) continue;
+        out.push({ dataset: 'diary', key: dk[i], value: diary[dk[i]] });
+      }
+    }
+    if (taste && Array.isArray(taste.items)) {
+      for (var j = 0; j < taste.items.length; j++) {
+        var item = taste.items[j];
+        if (!item || typeof item !== 'object' || typeof item.id !== 'string') continue;
+        out.push({ dataset: 'taste', key: item.id, value: item });
+      }
+    }
+    return out;
+  }
+
+  function parseBackup(raw) {
+    var value = raw;
+    if (typeof value === 'string') {
+      try {
+        value = JSON.parse(value);
+      } catch (e) {
+        throw makeUnrecognizedError('不是合法的 JSON');
+      }
+    }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw makeUnrecognizedError('顶层不是一个对象');
+    }
+
+    var hasTaste = Object.prototype.hasOwnProperty.call(value, 'taste');
+    var hasDiary = Object.prototype.hasOwnProperty.call(value, 'diary');
+    if (!hasTaste && !hasDiary) {
+      if (looksLikeLegacyDiary(value)) {
+        var fromLegacy = legacyEntries(value);
+        return {
+          version: BACKUP_VERSION,
+          diary: value,
+          taste: null,
+          kind: 'diary',
+          versionAhead: false,
+          entries: fromLegacy,
+        };
+      }
+      throw makeUnrecognizedError('既没有 diary / taste 键，也不像旧版的扁平日记备份');
+    }
+
+    var diary = hasDiary ? requireObjectOrNull(value.diary, 'diary') : null;
+    var taste = hasTaste ? requireObjectOrNull(value.taste, 'taste') : null;
+    var kind = hasDiary && hasTaste ? 'mixed' : (hasTaste ? 'taste' : 'diaryOnly');
+    var version = typeof value.version === 'number' ? value.version : BACKUP_VERSION;
+    return {
+      version: version,
+      versionAhead: version > BACKUP_VERSION,
+      diary: diary,
+      taste: taste,
+      kind: kind,
+      entries: newFormatEntries(diary, taste),
+    };
+  }
+
+  // 交接：和 T1 / T3 共用同一个 window.__tasteModules（这是模块代码里唯一的例外）。
+  if (typeof window !== 'undefined') {
+    try {
+      if (!window.__tasteModules) window.__tasteModules = {};
+      window.__tasteModules.BACKUP_VERSION = BACKUP_VERSION;
+      window.__tasteModules.buildBackup = buildBackup;
+      window.__tasteModules.parseBackup = parseBackup;
+      window.__tasteModules.makeBackupUnrecognizedError = makeUnrecognizedError;
+    } catch (e) {}
+  }
+})();
+
+</script>
+
+<script>
 /* ================= 数据与工具 ================= */
 var STORE_KEY = 'yuki_diary_v1';
 var WEEK_CN = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
