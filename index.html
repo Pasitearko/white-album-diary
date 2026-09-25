@@ -30,7 +30,7 @@
 })();
 </script>
 <style>
-/* build:155009-64424 */
+/* build:161401-69903 */
 /* ==========================================================================
    白色相簿 · 样式表
    骨架 = macOS 桌面应用（8pt 网格 / 同心圆角 / 材质只属导航层）
@@ -105,6 +105,9 @@
   --ease-exit:cubic-bezier(.3,0,1,1);
   --dur-press:100ms; --dur-micro:150ms; --dur-med:200ms; --dur-screen:300ms;
   --dur-wallpaper:1500ms;
+  /* 主题切换独立一档：它要盖住整站的明暗变化，比 --dur-screen 慢才读得出「渐变」，
+     但又不能慢到让人觉得界面卡住。同样不占上面四档 UI 预算。 */
+  --dur-theme:450ms;
 
   /* 层级标尺：不许再出现任意 z-index */
   --z-wallpaper:0; --z-snow:1; --z-content:10; --z-sticky:20; --z-sidebar:30;
@@ -122,6 +125,11 @@
   --scrim-top:hsl(206 42% 97% / .62);
   --scrim-mid:hsl(205 40% 96% / .10);
   --scrim-bottom:hsl(206 42% 97% / .14);
+
+  /* 标题底下的柔和纱罩。色标被 @property 注册过，切主题时是插值而不是硬切 */
+  --veil-1:hsl(206 44% 98% / .62);
+  --veil-2:hsl(206 44% 98% / .30);
+  --veil-3:hsl(206 44% 98% / 0);
 
   /* 击键墨点（每次输入）与冰晶（保存这类仪式时刻） */
   --ink-bloom:hsl(205 62% 60%);
@@ -173,6 +181,11 @@ body[data-theme="dark"]{
   --scrim-top:hsl(212 40% 6% / .66);
   --scrim-mid:hsl(212 38% 7% / .30);
   --scrim-bottom:hsl(212 40% 6% / .48);
+
+  --veil-1:hsl(212 40% 6% / .74);
+  --veil-2:hsl(212 40% 6% / .38);
+  --veil-3:hsl(212 40% 6% / 0);
+
   color-scheme:dark;
 }
 
@@ -207,7 +220,76 @@ img{max-width:100%}
 b,strong{font-weight:600}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-xs)}
 ::selection{background:var(--ice200);color:var(--n900)}
-body.theming,body.theming *{transition:none!important}
+/* ---------- 主题切换：整站交叉淡入 ----------
+   只在切换主题的那一小段时间挂过渡：JS 给 body 加 .theming，700ms 后撤掉。
+   平时一个常驻过渡都不挂（原作者的理由：常驻过渡拖慢渲染），这条是原站点
+   （见 .shots/index.orig.html:91-112）的做法，迁移时被误换成了
+   `transition:none!important`，于是切主题变成硬切 —— 本次恢复并加强。
+
+   CSS 的 transition 是整条替换、不能追加，所以窗口期内组件自己的过渡列表会被下面这条
+   覆盖。属于「颜色」的属性统一按 --dur-theme 走；属于「按下 / 滑动 / 换壁纸」的
+   transform、opacity 在再下面几条里各自还回去，窗口期内不会跳变。 */
+body.theming,
+body.theming *,
+body.theming *::before,
+body.theming *::after{
+  transition:background-color var(--dur-theme) var(--ease-in-out),
+             color var(--dur-theme) var(--ease-in-out),
+             border-color var(--dur-theme) var(--ease-in-out),
+             outline-color var(--dur-theme) var(--ease-in-out),
+             box-shadow var(--dur-theme) var(--ease-in-out),
+             fill var(--dur-theme) var(--ease-in-out),
+             stroke var(--dur-theme) var(--ease-in-out)!important;
+}
+/* 两张主题相关的渐变（.wallpaper 的遮罩与 .view-head 的纱罩）不能靠元素过渡：
+   background-image 是离散的，一帧就换掉。把它们的色标注册成 <color>，
+   让**变量本身**插值 —— 渐变每帧跟着变量重算，就得到插值效果。
+   实测依据：.shots/probe-theme.mjs 逐帧读到 26/26 个不同值。
+   不支持 @property 的浏览器直接忽略这几条，变量照旧生效，只是退回硬切。 */
+@property --scrim-top{syntax:"<color>";inherits:true;initial-value:hsl(206 42% 97% / .62)}
+@property --scrim-mid{syntax:"<color>";inherits:true;initial-value:hsl(205 40% 96% / .10)}
+@property --scrim-bottom{syntax:"<color>";inherits:true;initial-value:hsl(206 42% 97% / .14)}
+@property --veil-1{syntax:"<color>";inherits:true;initial-value:hsl(206 44% 98% / .62)}
+@property --veil-2{syntax:"<color>";inherits:true;initial-value:hsl(206 44% 98% / .30)}
+@property --veil-3{syntax:"<color>";inherits:true;initial-value:hsl(206 44% 98% / 0)}
+/* 色标只在 body 上变（:root 定义浅色、body[data-theme="dark"] 定义深色），
+   所以 var 过渡挂在 body 上，后代继承每帧的新值。只给 .theming 窗口挂。 */
+body.theming{
+  transition:background-color var(--dur-theme) var(--ease-in-out),
+             color var(--dur-theme) var(--ease-in-out),
+             border-color var(--dur-theme) var(--ease-in-out),
+             outline-color var(--dur-theme) var(--ease-in-out),
+             box-shadow var(--dur-theme) var(--ease-in-out),
+             fill var(--dur-theme) var(--ease-in-out),
+             stroke var(--dur-theme) var(--ease-in-out),
+             --scrim-top var(--dur-theme) var(--ease-in-out),
+             --scrim-mid var(--dur-theme) var(--ease-in-out),
+             --scrim-bottom var(--dur-theme) var(--ease-in-out),
+             --veil-1 var(--dur-theme) var(--ease-in-out),
+             --veil-2 var(--dur-theme) var(--ease-in-out),
+             --veil-3 var(--dur-theme) var(--ease-in-out)!important;
+}
+/* 把上面那条覆盖掉的「非颜色」时序还回去。不还的话，切主题后 700ms 内
+   点导航：指示器会瞬移（第一轮刚做好的滑动）、点按钮：按下不会回缩。 */
+body.theming .nav-indicator{
+  transition:transform var(--dur-med) var(--ease-out),
+             opacity var(--dur-micro) var(--ease-out),
+             background-color var(--dur-theme) var(--ease-in-out)!important;
+}
+body.theming .tb-chip,body.theming .tag,body.theming .btn-primary,body.theming .btn-ghost,
+body.theming .focus-exit,body.theming .shot-action,body.theming .modal-cancel,body.theming .modal-ok{
+  transition:background-color var(--dur-theme) var(--ease-in-out),
+             color var(--dur-theme) var(--ease-in-out),
+             border-color var(--dur-theme) var(--ease-in-out),
+             transform var(--dur-press) var(--ease-out)!important;
+}
+/* 壁纸的明暗（filter）必须跟着淡，否则整块背景会在一切都在渐变时先硬切一下。
+   opacity / transform 保持原来的时长，它们管的是换壁纸，不是换主题。 */
+body.theming .wallpaper .wp{
+  transition:opacity var(--dur-wallpaper) var(--ease-in-out),
+             transform 2600ms var(--ease-in-out),
+             filter var(--dur-theme) var(--ease-in-out)!important;
+}
 
 /* 键盘可达的跳转：视觉隐藏但可读屏 */
 .sr-only{
@@ -230,10 +312,17 @@ body.theming,body.theming *{transition:none!important}
   position:absolute;inset:0;
   background-repeat:no-repeat;background-position:center center;background-size:cover;
   opacity:0;transform:scale(1.06);
-  filter:blur(.6px) saturate(1.04);
+  /* 函数表必须与深色那条约**逐项对齐**（同名、同序、同个数），否则 filter 不可插值、
+     切主题时这两个函数会离散换掉 —— 实测 wpFilter 只有 1 个值的根因就是
+     浅色写 2 个函数、深色写 3 个。brightness(1) 是恒等，加上去不改变浅色观感。
+     过渡本身挂在 .theming 窗口里（见下面 body.theming .wallpaper .wp），
+     这里不挂：首屏应用主题时不该看到任何渐变。 */
+  filter:brightness(1) saturate(1.04) blur(.6px);
   transition:opacity var(--dur-wallpaper) var(--ease-in-out),
              transform 2600ms var(--ease-in-out);
-  will-change:opacity;
+  /* 也把 filter 提上来：它是整屏图片的滤镜，留在主线程逐帧重绘会让 450ms 的
+     主题过渡掉到 45fps（实测 maxDuring 44.4ms）。提层后交给合成器。 */
+  will-change:opacity,filter;
 }
 .wallpaper .wp.on{opacity:var(--wallpaper-opacity);transform:scale(1)}
 body[data-theme="dark"] .wallpaper .wp{filter:brightness(.72) saturate(.88) blur(.6px)}
@@ -281,17 +370,13 @@ main{
 /* 标题直接坐在壁纸上：给一条柔和的白纱保证大字对比度，不再整块漂白 */
 .view-head::before{
   content:"";position:absolute;left:-28px;right:-28px;top:-14px;bottom:-10px;
+  /* 色标走 --veil-*：深色主题只改这三个变量的值（见 body[data-theme="dark"]），
+     它们被 @property 注册过，所以切主题时这里是插值而不是硬切。 */
   background:radial-gradient(58% 130% at 14% 46%,
-    hsl(206 44% 98% / .62) 0%,
-    hsl(206 44% 98% / .30) 48%,
-    hsl(206 44% 98% / 0) 82%);
+    var(--veil-1) 0%,
+    var(--veil-2) 48%,
+    var(--veil-3) 82%);
   z-index:-1;pointer-events:none;
-}
-body[data-theme="dark"] .view-head::before{
-  background:radial-gradient(58% 130% at 14% 46%,
-    hsl(212 40% 6% / .74) 0%,
-    hsl(212 40% 6% / .38) 48%,
-    hsl(212 40% 6% / 0) 82%);
 }
 .view-head .kicker{
   font-size:var(--fs-1);font-weight:600;
@@ -993,10 +1078,18 @@ body.focus-mode .diary-card::after{display:none}
   color:var(--text-strong);
 }
 .chart-panel .csub{margin-top:4px;margin-bottom:10px;font-size:var(--fs-2);color:var(--text-muted)}
-.chart-box{height:300px}
+.chart-box{height:300px;position:relative}
 /* 图表空态：复用 .state-empty，但不要再撑满 300px 的空画布高度 */
 .chart-box.chart-box--empty{height:auto}
 .chart-box--empty .state-empty{padding:36px 24px}
+/* 切主题时盖在旧图上的快照。canvas 里的像素不受 CSS 过渡管辖，
+   ECharts 只能 dispose + 重画，那就一定是硬切——所以把旧画面抓成图片盖住，
+   淡出它，底下已经是新配色、并且关掉了入场动画的新图。 */
+.chart-fade{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;opacity:1}
+.chart-fade.out{opacity:0}
+/* 必须在这里补一条：css-1 的 body.theming * 用 !important 把 transition 整条换成了
+   那七个颜色/描边属性，没有 opacity，上面 .chart-fade 自己的过渡会被它顶掉。 */
+body.theming .chart-fade{transition:opacity var(--dur-theme) var(--ease-in-out)!important}
 
 .heat-panel{
   display:grid;grid-template-columns:auto minmax(260px,1fr);
@@ -1605,6 +1698,28 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     animation-play-state:paused!important;
   }
   .view.active>*{animation:none}
+  /* 主题切换的整站交叉淡入整条关掉：大面积明暗变化对畏动的人最难受。
+     上面那条 `*` 的特异度是 (0,0,0)，压不住 css-1 里 body.theming 那几条 (0,1,1)，
+     必须在这里用同特长度 + 更靠后的顺序盖掉。
+     **凡是 css-1 里写成 `body.theming <类>` 的规则，特异度都是 (0,2,1)，都要在这儿点名**：
+     `.wallpaper .wp` 是 (0,3,1)，不点名它的 transform 会被还给 2600ms；
+     `.nav-indicator`、那组药丸按钮、`.chart-fade`（在 css-3）都是 (0,2,1)，
+     不点名就会在「减少动态效果」下照样淡 450ms。 */
+  body.theming,body.theming *,
+  body.theming *::before,body.theming *::after,
+  body.theming .wallpaper .wp,
+  body.theming .chart-fade,
+  body.theming .nav-indicator,
+  body.theming .tb-chip,
+  body.theming .tag,
+  body.theming .btn-primary,
+  body.theming .btn-ghost,
+  body.theming .focus-exit,
+  body.theming .shot-action,
+  body.theming .modal-cancel,
+  body.theming .modal-ok{
+    transition:none!important;
+  }
   .ice-ripple,.ice-flake{display:none}
   .diary-card::after{transition:none}
 }
@@ -3567,13 +3682,20 @@ document.getElementById('noiseToggle').addEventListener('click',function(){
   collapse();
 })();
 /* 时钟 */
+var lastClockDay=todayKey();
 setInterval(function(){
   var n=new Date();
   document.getElementById('clockTime').textContent=pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
-  var sd=document.getElementById('sideDate');
-  if(sd && sd.textContent!==(n.getFullYear()+' 年 '+pad(n.getMonth()+1)+' 月 '+pad(n.getDate())+' 日')){
-    applyRoute();
-  }
+  /* 跨过零点时重走一次路由，让「今天」翻页。
+     这里必须拿记下来的日期比，**不能拿 #sideDate 的文本比**：
+     那个元素只有 renderToday() 会写，而 renderToday() 只在 today 路由上跑。
+     直接从 #/stats（或 #/browse、#/trash）刷新进来时它是空的，
+     「文本 !== 今天」就永远成立 → applyRoute() 每秒执行一次，
+     统计页于是每秒 renderStats() 一次：整块卡片、168 个热力格子、
+     两张 ECharts（dispose + 重新 init）全部重建。
+     表现就是切主题时内容在第 150ms 硬跳，以及热力图的点击环活不满一秒。 */
+  var k=todayKey();
+  if(k!==lastClockDay){lastClockDay=k;applyRoute();}
 },1000);
 
 /* ================= 翻阅过往 ================= */
@@ -3926,10 +4048,84 @@ function renderStats(){
   }
   document.getElementById('heatGrid').innerHTML=cells;
 
+  /* 两张 ECharts 走 drawStatCharts()，切主题时也调它。
+     颜色从设计令牌读、借一个探针元素拿回能喂给 canvas 的 rgba 串，都在那边。 */
+  drawStatCharts();
+  /* 星期分布：每篇日记都必然落进一个星期，所以只要 ks 非空这张图就有柱子，
+     不需要自己的空态（一篇都没有的情况上面已经整页处理掉了）。 */
+  var wk=[0,0,0,0,0,0,0];
+  ks.forEach(function(k){var d=parseKey(entryDay(k));wk[(d.getDay()+6)%7]++;});
+  /* 热力图侧栏：写作习惯 */
+  var busiest=wk.indexOf(Math.max.apply(null,wk));
+  var sideItems=[
+    {v:st.days,u:'天',l:'有日记的日子'},
+    {v:total?Math.round(words/total):0,u:'字',l:'每篇平均字数'},
+    {v:total?['周一','周二','周三','周四','周五','周六','周日'][busiest]:'——',u:'',l:'最常落笔的日子'}
+  ];
+  document.getElementById('heatSide').innerHTML=sideItems.map(function(it){
+    return '<div class="heat-item"><div class="hv">'+it.v+(it.u?'<small>'+it.u+'</small>':'')+'</div><div class="hl">'+it.l+'</div></div>';
+  }).join('');
+
+  /* 月度汇总 */
+  var mm={};
+  ks.forEach(function(k){
+    var m=entryDay(k).slice(0,7);
+    if(!mm[m])mm[m]={n:0,w:0};
+    mm[m].n++;mm[m].w+=DB[k].words||0;
+  });
+  var rows=Object.keys(mm).sort().reverse().slice(0,12).map(function(m){
+    var x=mm[m];
+    return '<tr><td class="m">'+m.replace('-',' 年 ')+' 月</td><td>'+x.n+' 篇</td><td>'+x.w+' 字</td><td>'+Math.round(x.w/x.n)+' 字/篇</td></tr>';
+  }).join('');
+  document.querySelector('#monthTable tbody').innerHTML=rows||
+    '<tr><td colspan="4" class="state-cell">还没有数据</td></tr>';
+}
+/* 只重画两张 ECharts，不碰统计页的 DOM。
+   切主题时必须走这条而不是 renderStats()：renderStats() 会把 #statCards /
+   #heatGrid / #heatSide / 月表整个重建，而**新建出来的元素没有「之前的样子」，
+   根本不会参与过渡**——实测整块内容在第 1 帧就跳到终态（热力图区域的均值
+   213 → 76，终值才 25），外面那圈 shell 还在慢慢变，看着就是「内容先黑、外壳后黑」。
+   canvas 里的像素 CSS 过渡管不到，本来就只能重画，所以这里只留真正需要重画的部分。
+   图表颜色一律从设计令牌读，不写字面量；浏览器会把 hsl() 归一成 rgb()，
+   所以借一个探针元素拿回可用给 canvas 的 rgba 串。 */
+function drawStatCharts(){
+  var ks=sortedKeys().filter(function(k){var e=DB[k];return e&&(e.content||(e.images&&e.images.length));});
+  /* 切主题这一趟必须做交叉淡入。canvas 里的像素不归 CSS 过渡管，ECharts 只能
+     dispose + 重画，所以「柱子瞬间换成新配色」躲不掉；更难看的是重画会带上
+     ECharts 自己的入场动画，读起来是「柱子先消失、再长出来」。
+     做法：把当前画面抓成快照盖在上面淡出，底下放一张关掉动画的新图。
+     只在 .theming 窗口里做——平常换路由重画时旧图画的是别的数据，不能拿出来淡。 */
+  var fading=document.body.classList.contains('theming');
+  var snaps={};
+  if(fading){
+    /* 只能先把画面抓下来，不能就地盖上去：下面那句 box30.innerHTML='' 是新旧画布交替的一部分，
+       会把刚 append 进去的 img 一并清掉（实测 fadeCount 恒为 0，快照一帧就没了）。 */
+    ['chart30','chartWeek'].forEach(function(id){
+      var box=document.getElementById(id);
+      var old=box&&box.querySelector('canvas');
+      if(old&&old.width&&old.height)snaps[id]=old.toDataURL();
+    });
+  }
+  /* 快照要等新图画好之后才盖上去，所以单独一个函数，放到函数末尾再调。 */
+  function dropSnap(id){
+    if(!snaps[id])return;
+    var box=document.getElementById(id);
+    if(!box)return;
+    var img=document.createElement('img');
+    img.className='chart-fade';img.alt='';img.src=snaps[id];
+    box.appendChild(img);
+    void img.offsetWidth;          /* 先让 opacity:1 落地，否则加 .out 的那一帧没有过渡起点 */
+    img.classList.add('out');
+    setTimeout(function(){img.remove();},700);
+  }
   charts.forEach(function(c){c.dispose();});charts=[];
-  /* 图表颜色一律从设计令牌读，不写字面量。
-     浏览器会把 hsl() 归一成 rgb()，所以借一个探针元素拿回可用给 canvas 的 rgba 串。
-     setTheme() 会在统计页重新调用本函数，因此切主题时图表跟着换色。 */
+  if(!ks.length){
+    document.getElementById('chart30').innerHTML='';
+    document.getElementById('chartWeek').innerHTML='';
+    return;
+  }
+  var dIdx=dayIndex();
+  var words=0;ks.forEach(function(k){words+=DB[k].words||0;});
   var css=getComputedStyle(document.body);
   function tk(n){return css.getPropertyValue(n).trim();}
   function tint(name,alpha){
@@ -3947,7 +4143,6 @@ function renderStats(){
   var tipBg=tint('--surface-raised',.97);
   var tipFg=tk('--text');
   var tipBorder=tint('--border',1);
-  var axisStyle={color:axisColor,fontSize:12,fontFamily:tk('--font-ui')};
   /* 近 30 日字数 */
   var d30=[],v30=[];
   for(var i=29;i>=0;i--){
@@ -3962,6 +4157,7 @@ function renderStats(){
   if(v30.some(Boolean)){
   var c1=echarts.init(box30);charts.push(c1);
   c1.setOption({
+    animation:!fading,   /* 切主题时关掉入场动画：上面那张快照正在淡出，底下不该再长一遍 */
     grid:{left:48,right:16,top:18,bottom:34},
     tooltip:{trigger:'axis',backgroundColor:tipBg,borderColor:tipBorder,borderWidth:1,textStyle:{color:tipFg,fontSize:13}},
     xAxis:{type:'category',data:d30,axisLine:{lineStyle:{color:axisLineColor}},axisTick:{show:false},axisLabel:{color:axisColor,fontSize:11.5,interval:4}},
@@ -3980,22 +4176,12 @@ function renderStats(){
       '</p></div>';
     box30.classList.add('chart-box--empty');
   }
-  /* 星期分布：每篇日记都必然落进一个星期，所以只要 ks 非空这张图就有柱子，
-     不需要自己的空态（一篇都没有的情况上面已经整页处理掉了）。 */
+  /* 星期分布 */
   var wk=[0,0,0,0,0,0,0];
   ks.forEach(function(k){var d=parseKey(entryDay(k));wk[(d.getDay()+6)%7]++;});
-  /* 热力图侧栏：写作习惯 */
-  var busiest=wk.indexOf(Math.max.apply(null,wk));
-  var sideItems=[
-    {v:st.days,u:'天',l:'有日记的日子'},
-    {v:total?Math.round(words/total):0,u:'字',l:'每篇平均字数'},
-    {v:total?['周一','周二','周三','周四','周五','周六','周日'][busiest]:'——',u:'',l:'最常落笔的日子'}
-  ];
-  document.getElementById('heatSide').innerHTML=sideItems.map(function(it){
-    return '<div class="heat-item"><div class="hv">'+it.v+(it.u?'<small>'+it.u+'</small>':'')+'</div><div class="hl">'+it.l+'</div></div>';
-  }).join('');
   var c2=echarts.init(document.getElementById('chartWeek'));charts.push(c2);
   c2.setOption({
+    animation:!fading,
     grid:{left:48,right:16,top:18,bottom:34},
     tooltip:{trigger:'axis',backgroundColor:tipBg,borderColor:tipBorder,borderWidth:1,textStyle:{color:tipFg,fontSize:13}},
     xAxis:{type:'category',data:['周一','周二','周三','周四','周五','周六','周日'],axisLabel:{color:axisColor,fontSize:12},axisLine:{lineStyle:{color:axisLineColor}},axisTick:{show:false}},
@@ -4004,20 +4190,7 @@ function renderStats(){
       itemStyle:{borderRadius:[3,3,0,0],
         color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:tint('--accent-quiet',.9)},{offset:1,color:tint('--accent-quiet',.32)}])}}]
   });
-
-  /* 月度汇总 */
-  var mm={};
-  ks.forEach(function(k){
-    var m=entryDay(k).slice(0,7);
-    if(!mm[m])mm[m]={n:0,w:0};
-    mm[m].n++;mm[m].w+=DB[k].words||0;
-  });
-  var rows=Object.keys(mm).sort().reverse().slice(0,12).map(function(m){
-    var x=mm[m];
-    return '<tr><td class="m">'+m.replace('-',' 年 ')+' 月</td><td>'+x.n+' 篇</td><td>'+x.w+' 字</td><td>'+Math.round(x.w/x.n)+' 字/篇</td></tr>';
-  }).join('');
-  document.querySelector('#monthTable tbody').innerHTML=rows||
-    '<tr><td colspan="4" class="state-cell">还没有数据</td></tr>';
+  dropSnap('chart30');dropSnap('chartWeek');
 }
 window.addEventListener('resize',function(){charts.forEach(function(c){c.resize();});});
 /* 点热力图格子，读这一天的明细。
@@ -4052,8 +4225,11 @@ document.getElementById('exportBtn').addEventListener('click',function(){
 
 /* ================= 主题切换 ================= */
 function setTheme(mode,persist){
-  /* 只在切换瞬间打开颜色过渡，切换结束就撤掉，避免常驻过渡拖慢渲染 */
-  document.body.classList.add('theming');
+  /* 只在切换瞬间打开颜色过渡，切换结束就撤掉，避免常驻过渡拖慢渲染。
+     首屏那次不能挂：页面加载时浏览器已经把初始样式算完了（默认浅色），
+     再挂过渡就会看到整页从浅色淡到深色。只有用户主动切换才走动画。 */
+  if(setTheme._booted)document.body.classList.add('theming');
+  setTheme._booted=true;
   clearTimeout(setTheme._t);
   setTheme._t=setTimeout(function(){document.body.classList.remove('theming');},700);
   document.body.dataset.theme=mode;
@@ -4067,7 +4243,9 @@ function setTheme(mode,persist){
     label.textContent='夜间模式';
   }
   if(persist)localStorage.setItem('yuki_theme',mode);
-  if((location.hash||'').indexOf('stats')>=0)renderStats();
+  /* 统计页在切主题时只能重画 canvas，绝不能 renderStats()：
+     那会把整块统计内容重建，新元素的颜色是「一出生就是终态」，不参与过渡。 */
+  if((location.hash||'').indexOf('stats')>=0)drawStatCharts();
 }
 document.getElementById('themeBtn').addEventListener('click',function(){
   var next=document.body.dataset.theme==='dark'?'light':'dark';
