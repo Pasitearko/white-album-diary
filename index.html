@@ -1200,6 +1200,119 @@ body[data-theme="dark"] .heat-cell.l4{background:var(--ice200);border-color:var(
 .month-table td.state-cell{padding:26px;text-align:center;color:var(--text-muted)}
 .r-untitled{color:var(--text-muted);font-weight:400}
 
+/* ---------- 品味库：收藏画廊 ----------
+   卡片骨架参考站点主人给的那张参考图：缩略图 → 标题行（左主标题 + 右副标题小字）
+   → 标签胶囊（最多 4 颗，多的折成 +N）→ 底栏（● 分类名 + 序号）。
+   桌面 2–3 列自适应、≤640px 单列。 */
+.taste-toolbar{display:flex;flex-direction:column;gap:12px;margin-bottom:18px}
+.taste-search{
+  display:flex;align-items:center;gap:9px;
+  padding:0 12px;height:44px;
+  background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--r-md);
+  box-shadow:var(--e0);
+}
+.taste-search svg{flex-shrink:0;color:var(--text-muted)}
+.taste-search input{
+  flex:1 1 auto;min-width:0;border:0;background:none;outline:none;
+  font-family:inherit;font-size:16px;color:var(--text);
+}
+.taste-search input::placeholder{color:var(--text-muted)}
+/* 搜索框此刻只是摆位置（T7 才接线）：别让它看起来像能用的控件 */
+.taste-search input[aria-disabled="true"]{cursor:default}
+.taste-search:focus-within{border-color:var(--accent)}
+/* 标签条横向滚动、不换行：标签多起来不能把卡片往下推 */
+/* 标签行（T7 接线）：还没筛之前不显示，给 :empty 留个去处 */
+.taste-tagbar{display:flex;align-items:center;gap:7px;overflow-x:auto;padding-bottom:2px}
+.taste-tagbar:empty{display:none}
+.taste-tagbar::-webkit-scrollbar{height:0}
+.taste-tagbar .tag{white-space:nowrap;flex:0 0 auto}
+
+/* 下限 310px：卡片窄到 280 时，主标题与副标题挤在一行里谁也放不下
+   （「Halftone Sails Collage」当场被截成省略号）。310 让这一栏稳定落在 3 列，
+   卡片宽度与站点主人给的那张参考图接近，也是「副标题先让、主标题完整」能成立的宽度。 */
+.taste-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px;align-items:start}
+.taste-grid:empty{display:none}
+
+.taste-card{
+  display:flex;flex-direction:column;text-align:left;
+  padding:0;overflow:hidden;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  box-shadow:var(--e0);
+  transition:box-shadow var(--dur-micro) var(--ease-out),transform var(--dur-press) var(--ease-out);
+}
+.taste-card:hover{box-shadow:var(--e1)}
+.taste-card:active{transform:scale(.99)}
+/* 缩略图约 16:10，右上角一枚「翻页」三角遮罩（参考图里那个角标） */
+.taste-thumb{
+  position:relative;aspect-ratio:16/10;overflow:hidden;
+  background:var(--surface-sunken);border-bottom:1px solid var(--border);
+}
+.taste-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.taste-thumb-empty{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;height:100%;color:var(--ice300);
+}
+.taste-thumb-empty svg{width:28px;height:28px}
+.taste-flip{
+  position:absolute;top:0;right:0;width:34px;height:34px;
+  display:flex;align-items:flex-start;justify-content:flex-end;
+  padding:6px 6px 0 0;
+  background:linear-gradient(225deg,var(--surface) 0 50%,transparent 50%);
+  color:var(--text-muted);
+}
+.taste-flip svg{width:11px;height:11px}
+/* 卡片正文区 —— 注意别跟视图容器 .taste-pane（#tasteBody）混了 */
+.taste-body{padding:14px 16px 0}
+.taste-title-row{display:flex;align-items:baseline;gap:10px}
+.taste-title{
+  flex:0 1 auto;min-width:0;
+  font-family:var(--font-serif);font-size:var(--fs-6);font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* 窄屏时副标题先被省略号吃掉：主标题完整可读优先。
+   两边都是 flex-shrink:1 时它们按 flex-basis 比例平分收缩，长标题会被同时截掉——
+   flex-grow 留在副标题身上，多出来的宽度归它，而主标题只在真的装不下时才让。 */
+.taste-sub{
+  flex:1 1 auto;min-width:0;max-width:46%;
+  text-align:right;
+  font-size:var(--fs-1);color:var(--text-muted);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.taste-tags{display:flex;align-items:center;gap:6px;margin-top:11px;overflow:hidden}
+/* 量宽、以及把放不下的胶囊收起来，都只换可见性 —— 整行先藏、量完一起亮，
+   行高和位置在量之前就定下来，量完不会跳。 */
+.taste-tags .tag,.taste-tags .tag-more{flex:0 0 auto;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.taste-tags .tag.is-out,.taste-tags .tag-more.is-out{display:none}
+.taste-tags-measuring{visibility:hidden}
+.taste-tags .tag-more{color:var(--text-muted);font-size:var(--fs-1)}
+.taste-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:14px;padding:11px 16px;border-top:1px solid var(--border);
+  font-size:var(--fs-1);color:var(--text-muted);
+}
+.taste-cat{display:flex;align-items:center;gap:7px;min-width:0}
+.taste-cat::before{
+  content:"";flex:0 0 auto;width:7px;height:7px;border-radius:var(--r-full);
+  background:var(--accent);
+}
+.taste-cat span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.taste-no{flex:0 0 auto;font-variant-numeric:tabular-nums}
+
+/* 末尾那张新建卡：虚线框 + 大加号。空库时它是唯一可点的东西。 */
+.taste-new{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  min-height:236px;padding:24px;cursor:pointer;
+  border:1px dashed var(--border-strong);border-radius:var(--r-lg);
+  background:var(--surface-sunken);color:var(--text-muted);
+  font-family:inherit;font-size:var(--fs-3);
+  transition:border-color var(--dur-micro) var(--ease-out),color var(--dur-micro) var(--ease-out),
+             background var(--dur-micro) var(--ease-out);
+}
+.taste-new svg{width:26px;height:26px;color:var(--ice300)}
+.taste-new:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.taste-new:hover svg{color:var(--accent)}
+.taste-new:active{transform:scale(.99)}
+
 /* ==========================================================================
    第 4 部分 · 覆盖层 / 背景音 / 截图标注 / 弹窗 / 响应式 / 无障碍
    ========================================================================== */
@@ -1674,6 +1787,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   .reader-head .r-date{font-size:var(--fs-7)}
   .reader-title{font-size:var(--fs-6)}
   .modal-box{padding:22px 20px}
+  /* 品味库单列；卡片里副标题的份额收窄一点，把宽度让给主标题 */
+  .taste-grid{grid-template-columns:1fr;gap:14px}
+  .taste-sub{max-width:38%;text-align:left}
+  .taste-new{min-height:150px}
 }
 
 /* ==========================================================================
@@ -1698,6 +1815,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     animation-play-state:paused!important;
   }
   .view.active>*{animation:none}
+  /* 导航指示器不滑动，直接落在新位置上。
+     上面那条 `*` 只是把时长压到 .01ms，对指示器来说仍是「两帧里的位移」；
+     这里显式关掉过渡，免得在畏动的偏好下还看见它一闪。 */
+  .nav-indicator{transition:none!important;transform:none!important}
   /* 主题切换的整站交叉淡入整条关掉：大面积明暗变化对畏动的人最难受。
      上面那条 `*` 的特异度是 (0,0,0)，压不住 css-1 里 body.theming 那几条 (0,1,1)，
      必须在这里用同特长度 + 更靠后的顺序盖掉。
@@ -1782,6 +1903,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
       <button class="nav-item" data-route="stats">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>
         写作统计
+      </button>
+      <button class="nav-item" data-route="taste">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 15l4.6-4.2 3.4 3.1 3-2.7 6 5.3"/><circle cx="9.2" cy="9" r="1.4"/></svg>
+        品味库
       </button>
       <button class="nav-item" data-route="trash">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>
@@ -2019,6 +2144,26 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
           <tbody></tbody>
         </table>
       </div>
+    </section>
+
+    <!-- ===== 视图：品味库 ===== -->
+    <section class="view" id="view-taste">
+      <div class="view-head">
+        <div class="kicker">TASTE</div>
+        <h2>品味库</h2>
+        <div class="line"></div>
+      </div>
+      <div class="taste-toolbar">
+        <!-- 筛选行（T7 接线）：搜索框与标签条此刻只摆位置，输入不会筛出结果，
+             所以先用 aria-disabled 说清楚，免得读屏用户以为它们坏了。 -->
+        <div class="taste-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <label class="sr-only" for="tasteSearchInput">搜索收藏</label>
+          <input id="tasteSearchInput" type="text" placeholder="搜索标题、副标题、笔记、网址或标签…" aria-disabled="true" title="筛选还没接上，这一步在后面的更新里">
+        </div>
+        <div class="taste-tagbar" id="tasteTagBar"></div>
+      </div>
+      <div class="taste-pane" id="tasteBody"></div>
     </section>
 
     <!-- ===== 视图：垃圾桶 ===== -->
@@ -2992,7 +3137,7 @@ function askConfirm(title,desc,okLabel,onOk,danger){
 })();
 
 /* ================= 路由 ================= */
-var routes=['today','browse','stats','trash'];
+var routes=['today','browse','stats','taste','trash'];
 /* 选中指示器的位移：直接量当前按钮相对 .nav 的偏移，不写死 46px——
    窄屏（≤960px）导航会从竖排换成横排，写死行距当场就错。
    关键：改了 transform 而 transition 正好是 none 时，这个「跳」会被直接落定、
@@ -3008,10 +3153,14 @@ function syncNavIndicator(instant){
   var nr=nav.getBoundingClientRect(),br=b.getBoundingClientRect();
   var tx='translate3d('+Math.round(br.left-nr.left)+'px,'+Math.round(br.top-nr.top)+'px,0)';
   var th=Math.round(br.height)+'px';
-  if(instant){ ind.style.height=th; ind.style.transform=tx; ind.classList.add('on'); return; }
+  /* 宽度也得跟着量：桌面下 .nav-item 撑满整条 nav，于是 CSS 里那句 width:100% 恰好成立；
+     一到手机顶栏（.nav 变 flex-direction:row）每个导航项只占 1/5，指示器还留 100%
+     就会横贯整条顶栏。宽度不进 transition 名单，所以同步改它不会自己动起来。 */
+  var tw=Math.round(br.width)+'px';
+  if(instant){ ind.style.width=tw; ind.style.height=th; ind.style.transform=tx; ind.classList.add('on'); return; }
   ind.classList.remove('on');                 /* 藏起来（过渡已恢复正常，会淡出） */
   requestAnimationFrame(function(){
-    ind.style.height=th; ind.style.transform=tx; void ind.offsetWidth; ind.classList.add('on');
+    ind.style.width=tw; ind.style.height=th; ind.style.transform=tx; void ind.offsetWidth; ind.classList.add('on');
   });
 }
 function go(route){
@@ -3043,6 +3192,7 @@ function applyRoute(){
   if(route==='stats')renderStats();
   if(route==='today')renderToday();
   if(route==='trash')renderTrash();
+  if(route==='taste')renderTaste();
   if(window.__applyWallpaper)window.__applyWallpaper(route);
 }
 window.addEventListener('hashchange',applyRoute);
@@ -4929,6 +5079,210 @@ document.getElementById('trashEmpty').addEventListener('click',function(){
   askConfirm('清空垃圾桶','垃圾桶里的 '+TRASH.length+' 篇日记将被永久删除，无法恢复。','清空',function(){
     purgeAllTrash();renderTrash();toast('垃圾桶已清空');
   },true);
+});
+
+/* ================= 品味库：收藏画廊（T2 / issue #3） ================= */
+/* 卡片骨架参考站点主人给的那张参考图：缩略图 → 标题行（左主标题 + 右副标题小字）
+   → 标签胶囊（最多 4 颗，多的折成 +N）→ 底栏（● 分类名 + 序号）。
+   这一票只搭壳：数据是下面这组示例（T3 的仓库接上之后删掉），
+   新建卡与筛选框先摆位置、不接行为 —— 「必须先连文件夹」这条硬规则要等
+   文件夹连接落地（T4）后才成立，在那之前让入口可点只会把用户带进死路。 */
+
+var TASTE_PREVIEW = { on:false };
+var TASTE_FAKE = [
+  /* 字段名照抄仓库产出的形状（subtitle / category，见 createTasteRepo 的 add）：
+     示例数据用短名字的话，预览看不出「渲染层读错字段名」这种错——
+     等下真数据接进来，副标题会静默变空、底栏会丢掉分类名。 */
+  { title:'Stillpage', subtitle:'warm editorial × print DNA', category:'Print-Tech Paper',
+    tags:['halftone CMYK dot texture','warm paper ground','mono coordinate labels','print grid marks','edge-to-edge bleed'] },
+  { title:'SPADE', subtitle:'print-tech × data', category:'Print-Tech Paper',
+    tags:['pale sage ground','topographic line illustration','mono data callouts','riso overprint'] },
+  { title:'Halftone Sails Collage', subtitle:'print DNA collage', category:'Print-Tech Paper',
+    tags:['halftone dot fields','cream and black blocks','archival sailing photography','letterpress grain'] },
+  { title:'Monolith', subtitle:'editorial grid restraint', category:'Type & Layout',
+    tags:['kinetic type','blueprint grid','wide tracking','negative space'] },
+  { title:'Castle', subtitle:'waitlist landing', category:'Web Reference',
+    tags:['engraved illustration','serif display','quiet CTA'] },
+  { title:'Asterisk Loving', subtitle:'product page warmth', category:'Web Reference',
+    tags:['portrait circle crop','soft neutral ground','rounded form field'] }
+];
+
+function tasteCardHTML(item,index,total){
+  var all=item.tags||[];
+  return '<article class="taste-card">'+
+    '<div class="taste-thumb"><div class="taste-thumb-empty">'+
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 15l4.6-4.2 3.4 3.1 3-2.7 6 5.3"/><circle cx="9.2" cy="9" r="1.4"/></svg>'+
+    '</div>'+
+    '<span class="taste-flip"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 3v8h-3.2V7.6L9.4 16H13v3.2H3V11h3.2v3.4L15 5.6h-3.4V3z"/></svg></span>'+
+    '</div>'+
+    '<div class="taste-body">'+
+      '<div class="taste-title-row"><div class="taste-title">'+esc(item.title||'')+'</div>'+
+      '<div class="taste-sub">'+esc(item.subtitle||'')+'</div></div>'+
+      /* 标签全部渲染出来，再交给 fitTasteTags 决定哪几颗放得下 ——
+         数胶囊颗数要用真实宽度量，猜宽度会在中英混排时翻车。
+         放不下的收进 +N，而不是让它被裁成半颗（半颗读起来像渲染坏了）。 */
+      '<div class="taste-tags">'+
+        all.map(function(t){
+          return '<span class="tag">'+esc(t)+'</span>';
+        }).join('')+
+        '<span class="tag-more"></span>'+
+      '</div>'+
+    '</div>'+
+    '<div class="taste-foot"><div class="taste-cat"><span>'+esc(item.category||'')+'</span></div>'+
+      '<div class="taste-no">'+pad(index+1)+' / '+total+'</div></div>'+
+  '</article>';
+}
+/* 卡片骨架里的标签行：一排放不下就收尾成「+N」，绝不让胶囊被切成半颗。
+   三个坑：①用 `hidden` 属性去藏会让 .tag 的 display 变 none，offsetWidth 跟着变 0，
+   第二次量就全「放得下」了；所以这里用 .is-out（display:none）藏、且**每次量之前
+   先把所有胶囊放回来**，保证量到的都是真实宽度。②量完再改可见性会让整行跳一下，
+   所以整行先 visibility:hidden，量完一起亮出来。③不管一行能塞下多少颗，最多只露 4 颗 ——
+   宽度够就全放出来的话，中文短标签或英文缩写会让一行挂上七八颗（实测 8 颗短标签放出 7 颗），
+   与「最多 4 颗 + N」的规格不符；量宽度只是为了在 4 颗里决定放几颗。 */
+var TASTE_MAX_TAGS=4;
+function fitTasteTags(){
+  var boxes=document.querySelectorAll('#tasteBody .taste-tags');
+  for(var i=0;i<boxes.length;i++){
+    var box=boxes[i], all=box.querySelectorAll('.tag'),
+        more=box.querySelector('.tag-more'), fits=[], used=0;
+    box.classList.add('taste-tags-measuring');
+    more.classList.add('is-out');
+    for(var p=0;p<all.length;p++)all[p].classList.remove('is-out');
+    for(var j=0;j<all.length;j++){
+      if(fits.length>=TASTE_MAX_TAGS)break;
+      var w=all[j].offsetWidth;
+      if(used+(used?6:0)+w<=box.clientWidth){used+=(used?6:0)+w;fits.push(all[j]);}
+    }
+    var hiddenCount=all.length-fits.length;
+    if(hiddenCount>0){
+      more.classList.remove('is-out');
+      more.textContent='+'+hiddenCount;
+      /* 徽标自己也得站得下；站不下就再让出一颗胶囊，而不是把徽标挤没 */
+      while(fits.length&&used+(used?6:0)+more.offsetWidth>box.clientWidth){
+        used-=fits[fits.length-1].offsetWidth+6;
+        fits.pop();
+        hiddenCount=all.length-fits.length;
+        more.textContent='+'+hiddenCount;
+      }
+      for(var k=0;k<all.length;k++){if(fits.indexOf(all[k])<0)all[k].classList.add('is-out');}
+    }else{
+      more.classList.add('is-out');
+      more.textContent='';
+    }
+    box.classList.remove('taste-tags-measuring');
+  }
+}
+
+function tasteNewCardHTML(){
+  return '<button type="button" class="taste-new" id="tasteNewCard">'+
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'+
+    '<span>添加一件收藏</span>'+
+  '</button>';
+}
+/* 三套空态共用一套标记，靠 data-kind 区分 —— 同一时刻只渲染一套，
+   所以重复的 id 暂时不会炸，但 id 是给「唯一的那个」用的，
+   将来详情弹窗里再放一个空态就会踩到 getElementById 抓错人的坑。 */
+function tasteEmptyHTML(kind){
+  var wrap=function(kind,inner){
+    return '<div class="state-empty" data-kind="'+kind+'">'+inner+'</div>';
+  };
+  if(kind==='folder'){
+    return wrap('folder',
+      '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+        '<path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.2l1.6 2H18a2.5 2.5 0 0 1 2.5 2.5v7A2.5 2.5 0 0 1 18 19H5.5A2.5 2.5 0 0 1 3 16.5z"/></svg>'+
+      '<strong>还没有指定存放的位置</strong>'+
+      '<p>品味库把缩略图存在你指定的文件夹里。先选一个文件夹，再开始收藏。</p>'+
+      '<button type="button" class="btn-ghost" id="tastePickFolder">选择文件夹</button>');
+  }
+  /* 这一套要到 T7 才有人调（筛选接上之后）。留着是因为三套文案是同一份规格的一部分，
+     分开写容易只改一套。 */
+  if(kind==='filter'){
+    return wrap('filter',
+      '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">'+
+        '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'+
+      '<strong>没有找到符合条件的收藏</strong>'+
+      '<p>换个关键词，或清空筛选。</p>'+
+      '<button type="button" class="btn-ghost" id="tasteClearFilter">清空筛选</button>');
+  }
+  /* 空库时网格与空态同时出现：虚线卡是网格的一部分（末尾那张），空态是它的说明。
+     两句都不省，读者一眼就知道下一步点哪儿。 */
+  return wrap('empty',
+    '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+      '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 15l4.6-4.2 3.4 3.1 3-2.7 6 5.3"/><circle cx="9.2" cy="9" r="1.4"/></svg>'+
+    '<strong>还没有收藏任何东西</strong>'+
+    '<p>点下面那张虚线卡片，把第一个网页或一段备忘收进来。</p>');
+}
+
+function renderTaste(){
+  var body=document.getElementById('tasteBody');
+  if(!body)return;
+  var tagbar=document.getElementById('tasteTagBar');
+  if(tagbar)tagbar.innerHTML='';
+  /* 没连文件夹 → 第一套空态，网格与新建卡都不出现（硬规则：不显示还做不到的能力） */
+  if(!TASTE_PREVIEW.on && !dirHandle){
+    body.innerHTML=tasteEmptyHTML('folder');
+    return;
+  }
+  var items=TASTE_PREVIEW.on?TASTE_FAKE:[];
+  if(!items.length){
+    body.innerHTML='<div class="taste-grid">'+tasteNewCardHTML()+'</div>'+tasteEmptyHTML('empty');
+    return;
+  }
+  body.innerHTML='<div class="taste-grid">'+
+    items.map(function(it,i){return tasteCardHTML(it,i,items.length);}).join('')+
+    tasteNewCardHTML()+
+  '</div>';
+  fitTasteTags();
+  /* 字体晚一步到位会把胶囊量窄：等字体就绪重量一次（只补这一次，不改观感） */
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTasteTags);
+}
+/* 卡片宽度随窗口变，能放下几颗胶囊也跟着变：重排后重量一次（沿用站内既有
+   的 resize 去抖写法，见雪花那段的 140ms）。 */
+var tasteFitTimer=0;
+window.addEventListener('resize',function(){
+  clearTimeout(tasteFitTimer);
+  tasteFitTimer=setTimeout(fitTasteTags,140);
+});
+/* 指示器只在 applyRoute() 里归位，而设备旋转、拉窗口跨过 960px 断点都不经过路由：
+   不补这一下，那条高亮会停在旧布局的坐标上，直到用户再切一次视图才自己跳回来。
+   这里是「布局变了、位置跟着改」，没有「从哪儿滑过来」可言，所以整个重排过程
+   （起点、过渡、去抖窗口）都把过渡关掉直接落位，而不是让它自己滑一段；
+   下一次 applyRoute 会照常恢复过渡。 */
+function repositionNavIndicator(){
+  var nav=document.getElementById('nav'),ind=document.getElementById('navIndicator');
+  if(!nav||!ind)return;
+  var b=nav.querySelector('.nav-item.active');
+  if(!b)return;
+  var nr=nav.getBoundingClientRect(),br=b.getBoundingClientRect();
+  ind.style.transition='none';
+  ind.style.width=Math.round(br.width)+'px';
+  ind.style.height=Math.round(br.height)+'px';
+  ind.style.transform='translate3d('+Math.round(br.left-nr.left)+'px,'+Math.round(br.top-nr.top)+'px,0)';
+}
+var navIndTimer=0;
+window.addEventListener('resize',function(){
+  clearTimeout(navIndTimer);
+  var ind=document.getElementById('navIndicator');
+  if(ind)ind.style.transition='none';
+  navIndTimer=setTimeout(function(){
+    repositionNavIndicator();
+    if(ind)ind.style.transition='';
+  },140);
+});
+/* 只看视觉对不对时的开关（真数据接上之后连同 TASTE_FAKE 一起删）：
+   控制台里 `__tastePreview()` 开、`__tastePreview(false)` 关。 */
+window.__tastePreview=function(on){
+  TASTE_PREVIEW.on=on!==false;
+  renderTaste();
+  return TASTE_PREVIEW.on?'示例卡片已打开（仅用于看样式）':'已回到真实状态';
+};
+/* 壳里的按钮此刻还没有真行为：给一句诚实的反馈，而不是静默无反应 */
+function tasteNotReady(){
+  toast('存放位置还没接上，这一步在后面的更新里');
+}
+document.addEventListener('click',function(e){
+  var t=e.target;
+  if(t.closest&&(t.closest('#tasteNewCard')||t.closest('#tastePickFolder')||t.closest('#tasteClearFilter')))tasteNotReady();
 });
 
 /* ================= 本地文件夹存储（File System Access API） ================= */
