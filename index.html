@@ -2189,6 +2189,163 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 </div>
 
 <script>
+/* ================= 品味库 · 存储后端适配层（T1 / issue #2） =================
+   一个最小接口 + 两个实现，给品味库的条目仓库当测试替身用。
+
+   接口刻意做窄，只有读、写、删、列四件事 —— 磁盘目录句柄和 IndexedDB 的
+   交集本来就窄，接口一旦宽过这个交集，就必然有某个后端实现不出来。
+
+      store.get(key)    -> Promise<值 | undefined>   读不存在的键不抛错
+      store.set(key, v) -> Promise<void>             同一个键覆盖写
+      store.delete(key) -> Promise<void>             键不存在时抛 KEY_NOT_FOUND
+      store.keys()      -> Promise<string[]>
+      store.ready       -> Promise<void>             后端就绪（IndexedDB 开库）
+
+   删除不存在的键抛 KEY_NOT_FOUND，是为了满足「返回可识别的失败信号而不是
+   静默成功」；调用方要幂等删除就自己 catch 这个 code，接口不做第二套语义。
+
+   两种实现都**不碰任何全局对象**：window / document / localStorage / indexedDB
+   一律由构造参数注入。所以它们能在 Node 里直接跑，不需要浏览器，也不需要 jsdom。
+   这不是洁癖 —— 单测要能在没有浏览器的环境里证明契约成立，
+   而 .shots/t1-store-backend.mjs 里的纯度门禁会把任何裸全局访问变成硬失败。 */
+(function () {
+  'use strict';
+
+  var DEFAULT_STORE_NAME = 'kv'; // 条目仓库会在建实例时显式传自己的名字，这个是兜底
+
+  function makeKeyNotFoundError(key) {
+    var err = new Error('存储里没有这个键：' + key);
+    err.name = 'KeyNotFoundError';
+    err.code = 'KEY_NOT_FOUND';
+    err.key = key;
+    return err;
+  }
+
+  // —— 内存实现：转瞬即逝，但后面所有单测的契约正确性都压在它身上。
+  function MemoryStore() {
+    var map = new Map();
+    this.ready = Promise.resolve();
+
+    // 用 async 方法体，省掉一堆 .then(...) 和 Promise.resolve(...) 的包装噪音。
+    this.get = async function (key) {
+      return map.has(key) ? map.get(key) : undefined;
+    };
+    this.set = async function (key, value) {
+      map.set(key, value);
+    };
+    this.delete = async function (key) {
+      if (!map.has(key)) throw makeKeyNotFoundError(key);
+      map.delete(key);
+    };
+    this.keys = async function () {
+      // 注意别写成 Array.prototype.slice.call(map.keys()) —— Map 迭代器没有 length，
+      // 切出来永远是个空数组，而且不报错。
+      return Array.from(map.keys());
+    };
+  }
+
+  // —— IndexedDB 实现：缩略图 Blob 在浏览器里的真相源。
+  // 它不引用全局 indexedDB，而是吃一个「长得像 indexedDB 的东西」，
+  // 所以 file:// 下的真机行为和单测里的假实现走的是同一段代码。
+  function makeIndexedDBStore(indexedDBImpl) {
+    if (!indexedDBImpl || typeof indexedDBImpl.open !== 'function') {
+      throw new TypeError('makeIndexedDBStore 需要一个实现了 open(name) 的 indexedDB（构造参数注入）');
+    }
+
+    function IndexedDBStore(dbName, storeName) {
+      var DB = dbName;
+      var STORE = storeName || DEFAULT_STORE_NAME;
+      var cache = null;
+
+      // dbPromise() 是「缓存连接」的取用点：cache 会被 close() 复位成 null，
+      // 复位之后必须重新走进 openConnection()，别把它当成一次性初始化。
+      function dbPromise() {
+        if (!cache) cache = openConnection();
+        return cache;
+      }
+
+      function openConnection() {
+        return new Promise(function (resolve, reject) {
+          var request = indexedDBImpl.open(DB, 1);
+          request.onupgradeneeded = function () {
+            var db = request.result;
+            if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+          };
+          request.onsuccess = function () { resolve(request.result); };
+          request.onerror = function () { reject(request.error); };
+        }).catch(function (err) {
+          // 失败时清掉缓存，否则一次开库失败会把后面所有调用都钉死在这个 rejection 上。
+          cache = null;
+          throw err;
+        });
+      }
+
+      function awaited(request) {
+        return new Promise(function (resolve, reject) {
+          request.onsuccess = function () { resolve(request.result); };
+          request.onerror = function () { reject(request.error); };
+        });
+      }
+
+      function withStore(mode, use) {
+        return dbPromise().then(function (db) {
+          var tx = db.transaction(STORE, mode);
+          var result = use(tx.objectStore(STORE));
+          var committed = new Promise(function (resolve, reject) {
+            tx.oncomplete = function () { resolve(); };
+            tx.onerror = function () { reject(tx.error); };
+            tx.onabort = function () { reject(tx.error); };
+          });
+          return committed.then(function () { return result; });
+        });
+      }
+
+      this.ready = dbPromise().then(function () {});
+
+      this.get = async function (key) {
+        return withStore('readonly', function (s) { return awaited(s.get(key)); });
+      };
+      this.set = async function (key, value) {
+        await withStore('readwrite', function (s) { return awaited(s.put(value, key)); });
+      };
+      this.delete = async function (key) {
+        // 先问真相源有没有这个键：IndexedDB 的 delete 对不存在的键是静默成功，
+        // 而契约要求「删不存在的键」给一个可识别的失败信号。
+        var current = await this.get(key);
+        if (current === undefined) throw makeKeyNotFoundError(key);
+        await withStore('readwrite', function (s) { return awaited(s.delete(key)); });
+      };
+      this.keys = async function () {
+        var keys = await withStore('readonly', function (s) { return awaited(s.getAllKeys()); });
+        return Array.from(keys || []);
+      };
+      this.close = function () {
+        var pending = cache;
+        cache = null;
+        if (!pending) return;
+        pending.then(function (db) { if (db && db.close) db.close(); }, function () {});
+      };
+    }
+
+    return IndexedDBStore;
+  }
+
+  var mods = {
+    makeKeyNotFoundError: makeKeyNotFoundError,
+    MemoryStore: MemoryStore,
+    makeIndexedDBStore: makeIndexedDBStore,
+  };
+
+  // 测试入口：Node 侧抽这个块、在桩全局下求值，再从 window.__tasteModules 取模块。
+  // 交接用的属性是这里唯一的例外，模块代码本身不读它。
+  if (typeof window !== 'undefined') {
+    try { if (!window.__tasteModules) window.__tasteModules = mods; } catch (e) {}
+  }
+})();
+
+</script>
+
+<script>
 /* ================= 数据与工具 ================= */
 var STORE_KEY = 'yuki_diary_v1';
 var WEEK_CN = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
