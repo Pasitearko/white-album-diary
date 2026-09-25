@@ -3902,7 +3902,10 @@ function renderStats(){
     var k=keyOf(d),list=dIdx[k]||[],w=0;
     list.forEach(function(kk){w+=DB[kk].words||0;});
     var lv=w?heatLevel(w):0;
-    var title=k+(list.length?(w+' 字'+(list.length>1?('　'+list.length+' 篇'):'')):'　无日记');
+    /* 日期和统计之间必须留一个全角空格。不留的话「2026-09-25」和「14 字」会粘成
+       「2026-09-2514 字」，读的人会把日期末尾的数字当成字数的一部分。
+       下面「无日记」那一支本来就有这个空格，两边要一致。 */
+    var title=k+(list.length?('　'+w+' 字'+(list.length>1?('　'+list.length+' 篇'):'')):'　无日记');
     cells+='<div class="heat-cell'+(lv?' l'+lv:'')+'" title="'+title+'"></div>';
   }
   document.getElementById('heatGrid').innerHTML=cells;
