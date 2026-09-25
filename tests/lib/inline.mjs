@@ -104,7 +104,7 @@ function makeFence(allowed) {
       if (typeof k === 'symbol') return undefined;
       if (ok.has(k)) return undefined;
       throw new ReferenceError(
-        'index.html 的存储后端碰了全局 ' + String(k) + ' —— 必须靠构造参数注入，不许读全局'
+        'index.html 的模块碰了全局 ' + String(k) + ' —— 必须靠构造参数注入，不许读全局'
       );
     },
   });

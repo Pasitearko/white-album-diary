@@ -2346,6 +2346,227 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 </script>
 
 <script>
+/* ================= 品味库 · 条目仓库（T3 / issue #6） =================
+   品味库的「脑子」：拿到全部条目之后，增、改、删、按收录时间倒序、
+   按关键词与标签筛、以及算出「01 / 28」里的那个 28。
+
+   它刻意不认识任何全局对象 —— 存储后端与时钟都由构造参数注入。
+   于是单测能把 T1 的 MemoryStore 换进去，在 Node 里直接跑，不需要浏览器。
+
+     createTasteRepo({ store, clock? }) -> Promise<repo>
+
+       repo.list({ search?, tags? })     -> Promise<条目[]>   已倒序、已筛选
+       repo.get(id)                      -> Promise<条目 | undefined>
+       repo.add(fields)                  -> Promise<条目>     补 id / createdAt / updatedAt
+       repo.update(id, patch)            -> Promise<条目>     不存在则抛 KEY_NOT_FOUND
+       repo.delete(id)                   -> Promise<void>     不存在则抛 KEY_NOT_FOUND
+       repo.numbering(items, i)          -> { index, total }  序号总数是筛选后的数
+
+   条目元数据整体写进注入的存储（浏览器里那是 localStorage，key 是 yuki_taste_v1）。
+   缩略图 Blob 不在这里 —— 那是 IndexedDB 的事，图与数据各有各的真相源。
+
+   T3 的模块块和 T1 各占一个块，块之间没有先后依赖（T3 那份错误工厂在工厂被调用时
+   才从 window.__tasteModules 上取，那时两个块都求值完了）。 */
+(function () {
+  'use strict';
+
+  var TASTE_KEY = 'yuki_taste_v1';
+
+  // 取 T1 那份错误工厂：删不存在的条目要和删不存在的键给同一个可识别的失败信号，
+  // 而不是各造一套。
+  function keyNotFound(key) {
+    var mods = (typeof window !== 'undefined') ? window.__tasteModules : undefined;
+    if (!mods || typeof mods.makeKeyNotFoundError !== 'function') {
+      throw new Error('createTasteRepo 需要先加载存储后端适配层（window.__tasteModules.makeKeyNotFoundError）');
+    }
+    return mods.makeKeyNotFoundError(key);
+  }
+
+  function has(obj, k) {
+    return Object.prototype.hasOwnProperty.call(obj, k);
+  }
+
+  function text(v) {
+    return v === null || v === undefined ? '' : String(v);
+  }
+
+  // 搜索要覆盖五个字段：标题、副标题、笔记、网址、标签。标签是数组，先摊平。
+  function haystack(item) {
+    return [
+      item.title, item.subtitle, item.note, item.url,
+      (item.tags || []).join(' '),
+    ].map(text).join('\n').toLowerCase();
+  }
+
+  function tagsOf(item) {
+    return (item.tags || []).map(function (t) { return text(t).toLowerCase(); });
+  }
+
+  function normalizeTags(value) {
+    if (!Array.isArray(value)) return [];
+    var out = [];
+    value.forEach(function (t) {
+      var s = text(t).trim();
+      // 大小写不同的同一个标签只留一份，否则它会和别的标签一起把交集筛成空
+      if (s && out.indexOf(s) < 0) out.push(s);
+    });
+    return out;
+  }
+
+  function byCreatedAtDesc(a, b) {
+    var d = (b.createdAt || 0) - (a.createdAt || 0);
+    if (d !== 0) return d;
+    // 同一毫秒收录的两条也得有个稳定次序，否则网格会在两次渲染之间自己跳
+    return text(a.id) < text(b.id) ? -1 : (text(a.id) > text(b.id) ? 1 : 0);
+  }
+
+  async function createTasteRepo(options) {
+    var opt = options || {};
+    var store = opt.store;
+    if (!store || typeof store.get !== 'function' || typeof store.set !== 'function' ||
+        typeof store.delete !== 'function') {
+      throw new TypeError('createTasteRepo 需要一个存储后端（T1 的 get/set/delete/keys 接口）');
+    }
+    var clock = typeof opt.clock === 'function' ? opt.clock : Date.now;
+    var storeKey = opt.key || TASTE_KEY;
+    var items = [];
+    var seq = 0;
+
+    /* 写进 store 的载荷**只留元数据，不打包图片字节**：三层持久化里
+       localStorage 是主索引、IndexedDB 才是图片的真相源（见 spec 的三层表）。
+       图片的 data URL 一旦跟着元数据落进 localStorage，几 MB 几条就能把配额
+       撑爆，而症状是「看上去存住了、刷新就没了」——最难查的那种。
+       图片本体按 id 存 IndexedDB，读取时由渲染层水合回来。 */
+    function snapshot() {
+      return { version: 1, items: items.map(stripImageData) };
+    }
+
+    function stripImageData(item) {
+      if (!item.images || !item.images.length) return item;
+      var next = Object.assign({}, item);
+      next.images = item.images.map(function (im) {
+        if (!im || typeof im !== 'object') return im;
+        var out = Object.assign({}, im);
+        delete out.dataUrl; // 留 id / name / addedAt，够渲染占位与去重
+        return out;
+      });
+      return next;
+    }
+
+    // 每次写回都带版本号：以后要迁格式时，靠它认出旧文件，而不是靠猜结构。
+    function persist() {
+      return store.set(storeKey, snapshot());
+    }
+
+    function readSnapshot(raw) {
+      var list = [];
+      if (Array.isArray(raw)) {
+        list = raw; // 裸数组也认，别让一个早期格式把整个库读空
+      } else if (raw && Array.isArray(raw.items)) {
+        list = raw.items;
+      }
+      return list.filter(function (it) { return it && typeof it === 'object'; });
+    }
+
+    function findIndex(id) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].id === id) return i;
+      }
+      return -1;
+    }
+
+    function filtered(opts) {
+      var o = opts || {};
+      var needle = text(o.search).trim().toLowerCase();
+      var wanted = normalizeTags(o.tags).map(function (t) { return t.toLowerCase(); });
+      return items.filter(function (item) {
+        if (needle && haystack(item).indexOf(needle) < 0) return false;
+        if (wanted.length) {
+          var own = tagsOf(item);
+          for (var i = 0; i < wanted.length; i++) {
+            if (own.indexOf(wanted[i]) < 0) return false; // 多选是交集：缺一颗就排除
+          }
+        }
+        return true;
+      }).sort(byCreatedAtDesc);
+    }
+
+    if (store.ready && typeof store.ready.then === 'function') await store.ready;
+    items = readSnapshot(await store.get(storeKey));
+
+    return {
+      list: async function (opts) { return filtered(opts); },
+
+      get: async function (id) {
+        var i = findIndex(id);
+        return i < 0 ? undefined : items[i];
+      },
+
+      add: async function (fields) {
+        var now = clock();
+        var src = fields || {};
+        var item = {
+          id: text(src.id) || ('taste_' + now + '_' + (seq++)),
+          type: src.type === 'note' ? 'note' : 'link',
+          title: text(src.title),
+          subtitle: text(src.subtitle),
+          url: text(src.url),
+          tags: normalizeTags(src.tags),
+          category: text(src.category),
+          note: text(src.note),
+          images: Array.isArray(src.images) ? src.images.slice() : [],
+          createdAt: typeof src.createdAt === 'number' ? src.createdAt : now,
+          updatedAt: typeof src.updatedAt === 'number' ? src.updatedAt : now,
+        };
+        items.push(item);
+        await persist();
+        return item;
+      },
+
+      update: async function (id, patch) {
+        var i = findIndex(id);
+        if (i < 0) throw keyNotFound(id);
+        var next = Object.assign({}, items[i], patch || {});
+        // 收录时间不许被 patch 改掉；id 也不许被改走，否则下一次查找就找不到它了
+        next.id = id;
+        next.createdAt = items[i].createdAt;
+        next.tags = normalizeTags(next.tags);
+        if (patch && has(patch, 'images') && !Array.isArray(next.images)) next.images = [];
+        next.updatedAt = clock();
+        items[i] = next;
+        await persist();
+        return next;
+      },
+
+      delete: async function (id) {
+        var i = findIndex(id);
+        if (i < 0) throw keyNotFound(id);
+        items.splice(i, 1);
+        await persist();
+      },
+
+      // 序号是「当前筛选结果里的第几个 / 一共几个」，不是全量库里的位置。
+      numbering: function (list, i) {
+        var total = (list || []).length;
+        var n = Math.max(0, Math.floor(i));
+        return { index: Math.min(n + 1, total || 1), total: total };
+      },
+    };
+  }
+
+  // 交接：和 T1 共用同一个 window.__tasteModules（这个属性是模块代码里唯一的例外）。
+  if (typeof window !== 'undefined') {
+    try {
+      if (!window.__tasteModules) window.__tasteModules = {};
+      window.__tasteModules.createTasteRepo = createTasteRepo;
+      window.__tasteModules.TASTE_KEY = TASTE_KEY;
+    } catch (e) {}
+  }
+})();
+
+</script>
+
+<script>
 /* ================= 数据与工具 ================= */
 var STORE_KEY = 'yuki_diary_v1';
 var WEEK_CN = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
