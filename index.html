@@ -1313,6 +1313,83 @@ body[data-theme="dark"] .heat-cell.l4{background:var(--ice200);border-color:var(
 .taste-new:hover svg{color:var(--accent)}
 .taste-new:active{transform:scale(.99)}
 
+/* ---------- 新建 / 修改收藏的表单（T5） ----------
+   弹窗比站内既有的 380px 宽，因为一次要摆下类型、名字、副标题、网址、分类、
+   标签、笔记与缩略图；窄屏交给既有的 .modal-box{max-width:100%} 兜底。 */
+.modal-box.taste-form{width:540px;max-height:min(86vh,780px);overflow:auto}
+/* 模态里每个输入框都要有真 <label>（DESIGN.md 的输入控件条款），
+   16px 是那条里点名的字号（小于 16px 时 iOS 聚焦会把整页放大）。
+   两处选择器都写成 .modal-box.taste-form 是为了压过 .modal-box 与 .modal-box input ——
+   它们写在样式表更靠后的位置，同特异度时后者赢，靠顺序赢则是脆的。 */
+.modal-box.taste-form input,.modal-box.taste-form textarea,.modal-box.taste-form select,.modal-box.taste-form .tag-input{font-size:16px}
+.taste-select{
+  appearance:none;-webkit-appearance:none;
+  width:100%;height:38px;padding:0 30px 0 12px;margin-bottom:14px;
+  border:1px solid var(--border-strong);border-radius:var(--r-xs);
+  background-color:var(--surface-sunken);
+  /* 箭头是数据 URI 里的内联 SVG：原生 select 不能带伪元素，唯一的画法是
+     background-image，而那里的色值引用不了 CSS 变量。这条与既有 .tool-select
+     用同一个 URI 与同一个色值，DESIGN.md 的「明确豁免」里记了这条例外，
+     改的话两处一起改。 */
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 4.5L6 7.5L9 4.5' fill='none' stroke='%237a8fa3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 10px center;background-size:10px;
+  color:var(--text);font-family:inherit;
+  transition:border-color var(--dur-micro) var(--ease-out),box-shadow var(--dur-micro) var(--ease-out);
+}
+.taste-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.taste-form textarea.taste-note{
+  width:100%;min-height:78px;padding:10px 12px;margin-bottom:14px;resize:vertical;
+  border:1px solid var(--border-strong);border-radius:var(--r-xs);
+  background:var(--surface-sunken);color:var(--text);
+  font-family:inherit;line-height:1.6;
+  transition:border-color var(--dur-micro) var(--ease-out),box-shadow var(--dur-micro) var(--ease-out);
+}
+.taste-form textarea.taste-note:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+/* 标签编辑框复用日记那套胶囊（.tag-input / .tag-chips / .tag-chip / .tc-del），
+   只把外层容器换成这个表单里的输入框样式 */
+.taste-tagedit{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  min-height:38px;padding:0 12px;margin-bottom:14px;
+  border:1px solid var(--border-strong);border-radius:var(--r-xs);
+  background:var(--surface-sunken);
+}
+.taste-images-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.taste-images-head span:first-child{font-size:var(--fs-1);color:var(--text-muted)}
+.taste-images-hint{font-size:var(--fs-1);color:var(--text-muted)}
+.taste-images{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.taste-image{
+  position:relative;width:84px;height:64px;flex:0 0 auto;overflow:hidden;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface-sunken);
+}
+.taste-image img{width:100%;height:100%;object-fit:cover;display:block}
+.taste-image-del{
+  position:absolute;top:2px;right:2px;width:20px;height:20px;
+  display:flex;align-items:center;justify-content:center;
+  padding:0;border:0;font-family:inherit;
+  border-radius:var(--r-full);background:var(--surface);color:var(--text-muted);
+  font-size:var(--fs-2);line-height:1;box-shadow:var(--e0);cursor:pointer;
+}
+.taste-image-del:hover{color:var(--danger)}
+.taste-image-add{
+  display:flex;align-items:center;justify-content:center;
+  width:84px;height:64px;flex:0 0 auto;cursor:pointer;
+  border:1px dashed var(--border-strong);border-radius:var(--r-sm);
+  background:var(--surface-sunken);color:var(--text-muted);
+}
+.taste-image-add svg{width:18px;height:18px}
+.taste-image-add:hover{border-color:var(--accent);color:var(--accent)}
+.taste-image-add:active{transform:scale(.97)}
+/* 拖图进来时的落点提示：整张表单描边，而不是在小小的缩略图格子上做文章 */
+.taste-form.taste-drop-on{outline:2px dashed var(--accent);outline-offset:-8px}
+/* 文本类条目的缩略图位：一段浅底色笔记预览（spec：文本类换成笔记预览，
+   而不是留一个空图片框）。行数钳到 5 行，卡片高度仍由 16:10 的框决定。 */
+.taste-thumb-note{display:flex;align-items:flex-start;padding:16px 18px}
+.taste-thumb-note p{
+  margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;
+  font-family:var(--font-serif);font-size:var(--fs-3);line-height:1.7;color:var(--text);
+  white-space:pre-wrap;word-break:break-word;
+}
+
 /* ==========================================================================
    第 4 部分 · 覆盖层 / 背景音 / 截图标注 / 弹窗 / 响应式 / 无障碍
    ========================================================================== */
@@ -1791,6 +1868,9 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   .taste-grid{grid-template-columns:1fr;gap:14px}
   .taste-sub{max-width:38%;text-align:left}
   .taste-new{min-height:150px}
+  /* 表单在窄屏吃满宽度；缩略图格子缩小一档，一行还能放下两张 */
+  .modal-box.taste-form{width:100%;max-height:88vh}
+  .taste-image,.taste-image-add{width:72px;height:56px}
 }
 
 /* ==========================================================================
@@ -2329,6 +2409,45 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     <div class="modal-actions">
       <button class="modal-cancel" id="confirmCancel">取消</button>
       <button class="modal-ok" id="confirmOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 品味库：添加一件收藏（T5 / issue #8） -->
+<div class="modal-mask" id="tasteModal" style="display:none">
+  <div class="modal-box taste-form" onclick="event.stopPropagation()">
+    <h4 id="tasteFormHeading">添加一件收藏</h4>
+    <label for="tasteTypeSel">类型</label>
+    <select class="taste-select" id="tasteTypeSel">
+      <option value="link">网页链接</option>
+      <option value="note">文本备忘</option>
+    </select>
+    <label for="tasteTitleInput">名字</label>
+    <input type="text" id="tasteTitleInput" maxlength="80" placeholder="例如：Stillpage">
+    <label for="tasteSubtitleInput">副标题（可留空）</label>
+    <input type="text" id="tasteSubtitleInput" maxlength="80" placeholder="例如：warm editorial × print DNA">
+    <div id="tasteUrlField">
+      <label for="tasteUrlInput">网址</label>
+      <input type="text" id="tasteUrlInput" placeholder="https://...">
+    </div>
+    <label for="tasteCategoryInput">分类（可留空）</label>
+    <input type="text" id="tasteCategoryInput" maxlength="30" placeholder="例如：Print-Tech Paper">
+    <label for="tasteTagInput">标签（回车添加，最多 8 个）</label>
+    <div class="taste-tagedit">
+      <input class="tag-input" id="tasteTagInput" type="text" maxlength="24" placeholder="标签，回车添加…">
+      <div class="tag-chips" id="tasteTagChips"></div>
+    </div>
+    <label for="tasteNoteInput">笔记（可留空）</label>
+    <textarea class="taste-note" id="tasteNoteInput" placeholder="为什么收它、想记住什么…"></textarea>
+    <div class="taste-images-head">
+      <span>缩略图</span>
+      <span class="taste-images-hint">可以选图、直接粘贴，或把图片拖进来</span>
+    </div>
+    <div class="taste-images" id="tasteImageList"></div>
+    <input type="file" id="tasteFileInput" accept="image/*" multiple style="display:none">
+    <div class="modal-actions">
+      <button class="modal-cancel" id="tasteCancel">取消</button>
+      <button class="modal-ok" id="tasteSave">保存</button>
     </div>
   </div>
 </div>
@@ -3523,7 +3642,7 @@ function applyRoute(){
   if(route==='stats')renderStats();
   if(route==='today')renderToday();
   if(route==='trash')renderTrash();
-  if(route==='taste')renderTaste();
+  if(route==='taste')renderTasteSafe();
   if(window.__applyWallpaper)window.__applyWallpaper(route);
 }
 window.addEventListener('hashchange',applyRoute);
@@ -5415,9 +5534,11 @@ document.getElementById('trashEmpty').addEventListener('click',function(){
 /* ================= 品味库：收藏画廊（T2 / issue #3） ================= */
 /* 卡片骨架参考站点主人给的那张参考图：缩略图 → 标题行（左主标题 + 右副标题小字）
    → 标签胶囊（最多 4 颗，多的折成 +N）→ 底栏（● 分类名 + 序号）。
-   这一票只搭壳：数据是下面这组示例（T3 的仓库接上之后删掉），
-   新建卡与筛选框先摆位置、不接行为 —— 「必须先连文件夹」这条硬规则要等
-   文件夹连接落地（T4）后才成立，在那之前让入口可点只会把用户带进死路。 */
+   这一票只搭壳：数据是下面这组示例（真数据已在 T5 接上，示例只留给
+   `__tastePreview()` 铺满网格看样式用，T12 收尾时删），
+   新建卡在 T5 接上了，筛选框仍只摆位置（T7 才接行为）；「必须先连文件夹」
+   这条硬规则要等文件夹连接落地（T4）后才成立，在那之前让入口可点只会把
+   用户带进死路。 */
 
 var TASTE_PREVIEW = { on:false };
 var TASTE_FAKE = [
@@ -5440,12 +5561,23 @@ var TASTE_FAKE = [
 
 function tasteCardHTML(item,index,total){
   var all=item.tags||[];
-  return '<article class="taste-card">'+
-    '<div class="taste-thumb"><div class="taste-thumb-empty">'+
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 15l4.6-4.2 3.4 3.1 3-2.7 6 5.3"/><circle cx="9.2" cy="9" r="1.4"/></svg>'+
-    '</div>'+
-    '<span class="taste-flip"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 3v8h-3.2V7.6L9.4 16H13v3.2H3V11h3.2v3.4L15 5.6h-3.4V3z"/></svg></span>'+
-    '</div>'+
+  var cover=(item.images||[])[0];
+  /* 缩略图位有三种样子：有封面字节 → 真图；文本类 → 一段浅底色笔记预览（spec L155）；
+     其余 → 图片占位符。笔记预览不带右上角那个「翻页」三角：它不是一张网页的预览。 */
+  var thumb;
+  if(item.type==='note'){
+    thumb='<div class="taste-thumb taste-thumb-note"><p>'+esc(item.note||item.title||'')+'</p></div>';
+  }else{
+    thumb='<div class="taste-thumb">'+
+      ((cover&&cover.dataUrl)
+        ? '<img src="'+esc(cover.dataUrl)+'" alt="'+esc(item.title||'')+'">'
+        : '<div class="taste-thumb-empty">'+
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 15l4.6-4.2 3.4 3.1 3-2.7 6 5.3"/><circle cx="9.2" cy="9" r="1.4"/></svg>'+
+          '</div>')+
+      '<span class="taste-flip"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 3v8h-3.2V7.6L9.4 16H13v3.2H3V11h3.2v3.4L15 5.6h-3.4V3z"/></svg></span>'+
+    '</div>';
+  }
+  return '<article class="taste-card">'+ thumb +
     '<div class="taste-body">'+
       '<div class="taste-title-row"><div class="taste-title">'+esc(item.title||'')+'</div>'+
       '<div class="taste-sub">'+esc(item.subtitle||'')+'</div></div>'+
@@ -5544,17 +5676,27 @@ function tasteEmptyHTML(kind){
     '<p>点下面那张虚线卡片，把第一个网页或一段备忘收进来。</p>');
 }
 
-function renderTaste(){
+/* 封面的字节从 IndexedDB 水合。只水合**封面**：一屏几十张卡、每张可能好几张图，
+   全量水合会让打开视图变成几百次读盘（详情弹窗到 T6 才需要整套图，那时再按需取）。 */
+async function tasteHydrateCovers(items,images){
+  var out=[];
+  for(var i=0;i<items.length;i++){
+    var item=items[i], list=(item.images||[]).slice(), cover=list[0], dataUrl='';
+    if(cover){
+      try{
+        var blob=await images.get(item.id,cover.imageId||cover.id);
+        if(blob) dataUrl=await blobToDataUrl(blob);
+      }catch(e){ dataUrl=''; }
+      list[0]=Object.assign({},cover,{dataUrl:dataUrl});
+    }
+    out.push(Object.assign({},item,{images:list}));
+  }
+  return out;
+}
+/* 只负责把已经拿到的条目画出来（示例数据与真数据走同一条出口） */
+function paintTaste(items){
   var body=document.getElementById('tasteBody');
   if(!body)return;
-  var tagbar=document.getElementById('tasteTagBar');
-  if(tagbar)tagbar.innerHTML='';
-  /* 没连文件夹 → 第一套空态，网格与新建卡都不出现（硬规则：不显示还做不到的能力） */
-  if(!TASTE_PREVIEW.on && !dirHandle){
-    body.innerHTML=tasteEmptyHTML('folder');
-    return;
-  }
-  var items=TASTE_PREVIEW.on?TASTE_FAKE:[];
   if(!items.length){
     body.innerHTML='<div class="taste-grid">'+tasteNewCardHTML()+'</div>'+tasteEmptyHTML('empty');
     return;
@@ -5566,6 +5708,43 @@ function renderTaste(){
   fitTasteTags();
   /* 字体晚一步到位会把胶囊量窄：等字体就绪重量一次（只补这一次，不改观感） */
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTasteTags);
+}
+/* 真数据的渲染是异步的：条目在 localStorage（经 T3 的仓库），封面字节在 IndexedDB。
+   回来的次序不保证 —— 连点两次视图切换时，先发的请求可能后回来；放一个序号，
+   只让最新的那一次落笔，否则网格会被画成上一次的样子。 */
+var tasteRenderSeq=0;
+async function renderTaste(){
+  var body=document.getElementById('tasteBody');
+  if(!body)return;
+  var tagbar=document.getElementById('tasteTagBar');
+  if(tagbar)tagbar.innerHTML='';
+  if(TASTE_PREVIEW.on){ paintTaste(TASTE_FAKE); return; }
+  /* 没连文件夹 → 第一套空态，网格与新建卡都不出现（硬规则：不显示还做不到的能力） */
+  if(!dirHandle){ body.innerHTML=tasteEmptyHTML('folder'); return; }
+  var seq=++tasteRenderSeq;
+  var items=[];
+  try{
+    var repo=await tasteRepo();
+    items=await repo.list();
+    if(items.length) items=await tasteHydrateCovers(items,await tasteImages());
+  }catch(e){
+    /* 仓库起不来（比如浏览器没有 IndexedDB）不该把页面打崩：退回空态，
+       真实入口仍是「选文件夹」，用户至少知道下一步点哪儿。 */
+    items=[];
+  }
+  if(seq!==tasteRenderSeq)return;
+  paintTaste(items);
+}
+/* 有些地方（连上文件夹之后、句柄异步恢复之后）只是想让网格醒过来，不需要等它，
+   但也不能把 renderTaste 的异常变成 unhandled rejection：出错时在验收后门上
+   留一句，页面照旧能用。 */
+function renderTasteSafe(){
+  try{
+    var p=renderTaste();
+    if(p&&typeof p.catch==='function')p.catch(function(err){
+      if(window.__tasteTest)window.__tasteTest.lastRenderError=String((err&&err.message)||err);
+    });
+  }catch(e){}
 }
 /* 卡片宽度随窗口变，能放下几颗胶囊也跟着变：重排后重量一次（沿用站内既有
    的 resize 去抖写法，见雪花那段的 140ms）。 */
@@ -5600,16 +5779,16 @@ window.addEventListener('resize',function(){
     if(ind)ind.style.transition='';
   },140);
 });
-/* 只看视觉对不对时的开关（真数据接上之后连同 TASTE_FAKE 一起删）：
-   控制台里 `__tastePreview()` 开、`__tastePreview(false)` 关。 */
+/* 只看视觉对不对时的开关（探针铺满网格、看样式时用；T12 收尾时连同
+   TASTE_FAKE 一起删）：控制台里 `__tastePreview()` 开、`__tastePreview(false)` 关。 */
 window.__tastePreview=function(on){
   TASTE_PREVIEW.on=on!==false;
-  renderTaste();
+  renderTasteSafe();
   return TASTE_PREVIEW.on?'示例卡片已打开（仅用于看样式）':'已回到真实状态';
 };
-/* 壳里的按钮此刻还没有真行为：给一句诚实的反馈，而不是静默无反应 */
-function tasteNotReady(){
-  toast('存放位置还没接上，这一步在后面的更新里');
+/* 还没接上的按钮：给一句诚实的反馈，而不是静默无反应 */
+function tasteNotReady(msg){
+  toast(msg||'这一步还没接上，在后面的更新里');
 }
 document.addEventListener('click',function(e){
   var t=e.target;
@@ -5618,11 +5797,277 @@ document.addEventListener('click',function(e){
      复用既有的存储弹窗（授权、换文件夹、状态文字都在那儿）。 */
   if(t.closest('#tastePickFolder')){
     var pickBtn=document.getElementById('storageBtn');
-    if(pickBtn)pickBtn.click(); else tasteNotReady();
+    if(pickBtn)pickBtn.click(); else tasteNotReady('存储入口没找到，请刷新页面再试');
     return;
   }
-  if(t.closest('#tasteNewCard')||t.closest('#tasteClearFilter'))tasteNotReady();
+  if(t.closest('#tasteNewCard')){ openTasteForm(); return; }
+  if(t.closest('#tasteClearFilter'))tasteNotReady('筛选还没接上，这一步在后面的更新里');
 });
+
+/* ================= 品味库：添加一件收藏（T5 / issue #8） =================
+   tracer bullet：从「我点了一张空卡片」到「刷新页面后它还在」。
+   硬规则：没连文件夹不许建（spec L120-129）—— 图片得落到磁盘上，
+   「先建了、刷新就没了」会让用户以为存住了。
+   图片三路进来（选文件 / Ctrl+V 粘贴 / 拖进来），保存前统一压到长边 ≤1600px、JPEG 0.85。
+
+   保存的次序是**先字节、后元数据**：图片进 IndexedDB（真相源），
+   「这个条目有哪些图」写进 localStorage 的元数据。反过来会留下一个短暂假象 ——
+   元数据说有图、字节还没有，那会儿刷新看到的卡片就是空的。 */
+
+var TASTE_IMAGE_MAX_EDGE=1600;
+var TASTE_IMAGE_QUALITY=0.85;
+var TASTE_FORM_MAX_TAGS=8;
+var tasteDraftImages=[];   /* 保存前的临时物：{id,name,addedAt,dataUrl,blob} */
+var tasteDraftTags=[];
+var tasteSaving=false;
+
+function tasteEl(id){ return document.getElementById(id); }
+function tasteFieldValue(id){ var el=tasteEl(id); return el?String(el.value||'').trim():''; }
+function tasteFormType(){ var el=tasteEl('tasteTypeSel'); return (el&&el.value==='note')?'note':'link'; }
+
+function renderTasteDraftTags(){
+  var box=tasteEl('tasteTagChips');
+  if(!box)return;
+  box.innerHTML=tasteDraftTags.map(function(t){
+    return '<span class="tag-chip">'+esc(t)+'<span class="tc-del" data-t="'+esc(t)+'">×</span></span>';
+  }).join('');
+}
+function renderTasteDraftImages(){
+  var box=tasteEl('tasteImageList');
+  if(!box)return;
+  box.innerHTML=tasteDraftImages.map(function(im){
+    return '<div class="taste-image" data-id="'+esc(im.id)+'">'+
+      '<img src="'+esc(im.dataUrl)+'" alt="'+esc(im.name||'缩略图')+'">'+
+      /* 真按钮，不是 span：给它 tabindex 却不响应键盘，比不可聚焦更误导人
+         （DESIGN.md 里图标按钮的要求也是真 <button> + aria-label）。 */
+      '<button type="button" class="taste-image-del" aria-label="移除这张图">×</button>'+
+    '</div>';
+  }).join('')+
+  '<button type="button" class="taste-image-add" id="tasteImageAdd" aria-label="添加图片">'+
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'+
+  '</button>';
+}
+/* 跟着类型走的字段：文本备忘没有网址可言，藏起来比留一个空框诚实 */
+function syncTasteFormType(){
+  var field=tasteEl('tasteUrlField');
+  if(field)field.style.display=(tasteFormType()==='note')?'none':'';
+}
+function setTasteFormBusy(busy){
+  var ok=tasteEl('tasteSave');
+  if(!ok)return;
+  ok.disabled=!!busy;
+  ok.textContent=busy?'保存中…':'保存';
+}
+function resetTasteForm(){
+  ['tasteTitleInput','tasteSubtitleInput','tasteUrlInput','tasteCategoryInput','tasteNoteInput','tasteTagInput']
+    .forEach(function(id){ var el=tasteEl(id); if(el)el.value=''; });
+  var type=tasteEl('tasteTypeSel');
+  if(type)type.value='link';
+  tasteDraftImages=[];
+  tasteDraftTags=[];
+  renderTasteDraftTags();
+  renderTasteDraftImages();
+  syncTasteFormType();
+  setTasteFormBusy(false);
+}
+
+/* 压图：长边 ≤1600px、JPEG 0.85。必须重新编码，而不是原样收下 ——
+   否则用户随手一张 4000px 的截图会原封不动写进文件夹。 */
+function compressTasteImage(file){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onerror=function(){ reject(reader.error||new Error('读不出这张图')); };
+    reader.onload=function(e){
+      var img=new Image();
+      img.onerror=function(){ reject(new Error('这不是一张能打开的图片')); };
+      img.onload=function(){
+        var w=img.width||1,h=img.height||1;
+        var scale=Math.min(1,TASTE_IMAGE_MAX_EDGE/Math.max(w,h));
+        var canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(w*scale));
+        canvas.height=Math.max(1,Math.round(h*scale));
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        if(!canvas.toBlob){ reject(new Error('这个浏览器压不出图片')); return; }
+        canvas.toBlob(function(blob){
+          if(!blob){ reject(new Error('这个浏览器压不出图片')); return; }
+          /* dataUrl 给表单立刻显示；blob 是写进 IndexedDB 的那个真相源 */
+          resolve({ dataUrl:canvas.toDataURL('image/jpeg',TASTE_IMAGE_QUALITY), blob:blob,
+                    width:canvas.width, height:canvas.height });
+        },'image/jpeg',TASTE_IMAGE_QUALITY);
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function addTasteDraftImages(files){
+  var list=[],i;
+  for(i=0;i<files.length;i++){
+    var f=files[i];
+    if(f&&/^image\//.test(f.type||''))list.push(f);
+  }
+  if(!list.length)return 0;
+  var added=0;
+  for(i=0;i<list.length;i++){
+    try{
+      var out=await compressTasteImage(list[i]);
+      tasteDraftImages.push({
+        id:'timg_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6),
+        name:list[i].name||'粘贴的图片',
+        addedAt:Date.now(),
+        dataUrl:out.dataUrl,
+        blob:out.blob,
+      });
+      added++;
+    }catch(e){}
+  }
+  renderTasteDraftImages();
+  if(added)toast(added>1?('已加入 '+added+' 张图'):'已加入 1 张图');
+  else toast('这些文件里没有能用的图片');
+  return added;
+}
+
+/* 没连文件夹时不打开表单，而是把人领回「选文件夹」那条既有的流程 */
+function openTasteForm(){
+  if(!dirHandle){
+    toast('先选一个文件夹，品味库才存得住东西');
+    var pickBtn=tasteEl('storageBtn');
+    if(pickBtn)pickBtn.click();
+    return false;
+  }
+  resetTasteForm();
+  openModal(tasteEl('tasteModal'));
+  var title=tasteEl('tasteTitleInput');
+  if(title)title.focus();
+  return true;
+}
+function closeTasteForm(){ closeModal(tasteEl('tasteModal')); }
+
+async function saveTasteEntry(){
+  if(tasteSaving)return;
+  var type=tasteFormType();
+  var title=tasteFieldValue('tasteTitleInput');
+  var url=tasteFieldValue('tasteUrlInput');
+  if(!title){ toast('先给它起个名字'); var t=tasteEl('tasteTitleInput'); if(t)t.focus(); return; }
+  if(type==='link'&&!url){ toast('网页链接得填上网址'); var u=tasteEl('tasteUrlInput'); if(u)u.focus(); return; }
+  tasteSaving=true;
+  setTasteFormBusy(true);
+  try{
+    var repo=await tasteRepo();
+    var images=await tasteImages();
+    var item=await repo.add({
+      type:type, title:title,
+      subtitle:tasteFieldValue('tasteSubtitleInput'),
+      url:(type==='link')?url:'',
+      tags:tasteDraftTags.slice(),
+      category:tasteFieldValue('tasteCategoryInput'),
+      note:tasteFieldValue('tasteNoteInput'),
+      images:[],
+    });
+    var meta=[];
+    for(var i=0;i<tasteDraftImages.length;i++){
+      var d=tasteDraftImages[i];
+      if(!d.blob)continue;
+      var ok=await images.put(item.id,{id:d.id,name:d.name,addedAt:d.addedAt},d.blob);
+      if(ok)meta.push({id:d.id,name:d.name,addedAt:d.addedAt});
+    }
+    if(meta.length) await repo.update(item.id,{images:meta});
+    closeTasteForm();
+    /* 先把卡片画出来（本地已经写完了，用户该立刻看到），再等磁盘那一步的结果：
+       toast 里「写进文件夹了」这句必须拿 mirrorTaste 的返回值来判 ——
+       文件夹权限被收回、磁盘满、删旧图报错都会让它返回 false。 */
+    await renderTaste();
+    var mirrored=await mirrorTaste();
+    if(!meta.length) toast('已收藏');
+    else if(mirrored) toast('已收藏，缩略图也写进文件夹了');
+    else toast('已收藏，但缩略图这次没写进文件夹，可在侧栏「存储」里重试');
+  }catch(e){
+    toast('没能存住，稍后再试');
+  }finally{
+    tasteSaving=false;
+    setTasteFormBusy(false);
+  }
+}
+
+(function wireTasteForm(){
+  var modal=tasteEl('tasteModal');
+  if(!modal)return;
+  tasteEl('tasteSave').addEventListener('click',saveTasteEntry);
+  tasteEl('tasteCancel').addEventListener('click',closeTasteForm);
+  modal.addEventListener('click',function(){ closeTasteForm(); });
+  tasteEl('tasteTypeSel').addEventListener('change',syncTasteFormType);
+  tasteEl('tasteTagInput').addEventListener('keydown',function(e){
+    if(e.key!=='Enter')return;
+    e.preventDefault();
+    var v=this.value.trim();
+    if(!v)return;
+    if(tasteDraftTags.indexOf(v)>=0){ toast('这个标签已经添加过了'); return; }
+    if(tasteDraftTags.length>=TASTE_FORM_MAX_TAGS){ toast('最多添加 '+TASTE_FORM_MAX_TAGS+' 个标签'); return; }
+    tasteDraftTags.push(v);
+    this.value='';
+    renderTasteDraftTags();
+  });
+  tasteEl('tasteTagChips').addEventListener('click',function(e){
+    var d=e.target.closest('.tc-del');
+    if(!d)return;
+    tasteDraftTags=tasteDraftTags.filter(function(t){return t!==d.dataset.t;});
+    renderTasteDraftTags();
+  });
+  tasteEl('tasteImageList').addEventListener('click',function(e){
+    if(e.target.closest('#tasteImageAdd')){ tasteEl('tasteFileInput').click(); return; }
+    var del=e.target.closest('.taste-image-del');
+    if(!del)return;
+    var wrap=del.closest('.taste-image');
+    if(!wrap)return;
+    tasteDraftImages=tasteDraftImages.filter(function(im){return im.id!==wrap.dataset.id;});
+    renderTasteDraftImages();
+  });
+  tasteEl('tasteFileInput').addEventListener('change',function(){
+    /* 先拷成数组、再清空 value：清空之后 FileList 会跟着空掉，
+       而压缩是 await 的，手里那个 list 就成了空的（不报错，只是图不见了）。 */
+    var files=Array.prototype.slice.call(this.files||[]);
+    this.value='';
+    if(files.length)addTasteDraftImages(files);
+  });
+  /* 粘贴（Ctrl+V）收剪贴板里的截图。监听挂在 document 上（表单打开时人可能
+     正停在别的元素上焦点），所以只在表单真打开时动手：别的时候任由浏览器
+     默认行为走，不然会把普通文字粘贴也吞掉。 */
+  document.addEventListener('paste',function(e){
+    if(modal.style.display==='none'||modal.classList.contains('closing'))return;
+    var items=(e.clipboardData&&e.clipboardData.items)||[];
+    var files=[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].kind!=='file')continue;
+      var f=items[i].getAsFile();
+      if(f)files.push(f);
+    }
+    if(!files.length)return;
+    e.preventDefault();
+    addTasteDraftImages(files);
+  });
+  /* 拖入：整张表单都算落点。dragover 必须 preventDefault，
+     否则浏览器会拿文件把整个页面顶掉（那不是我们能收回来的状态）。 */
+  modal.addEventListener('dragover',function(e){ e.preventDefault(); });
+  modal.addEventListener('dragenter',function(e){
+    e.preventDefault();
+    var box=modal.querySelector('.taste-form');
+    if(box)box.classList.add('taste-drop-on');
+  });
+  modal.addEventListener('dragleave',function(e){
+    var box=modal.querySelector('.taste-form');
+    if(box&&(!e.relatedTarget||!modal.contains(e.relatedTarget)))box.classList.remove('taste-drop-on');
+  });
+  modal.addEventListener('drop',function(e){
+    e.preventDefault();
+    var box=modal.querySelector('.taste-form');
+    if(box)box.classList.remove('taste-drop-on');
+    var files=(e.dataTransfer&&e.dataTransfer.files)||[];
+    if(files.length)addTasteDraftImages(files);
+  });
+  renderTasteDraftTags();
+  renderTasteDraftImages();
+  syncTasteFormType();
+})();
 
 /* ================= 本地文件夹存储（File System Access API） ================= */
 var FS_SUPPORTED = typeof window.showDirectoryPicker === 'function';
@@ -5789,27 +6234,72 @@ function saveTasteMirrored(){ try{ localStorage.setItem(TASTE_MIRROR_KEY,JSON.st
    品味库.md、images/ 空空如也。日记那边同时清 lastSynced，是同一个道理。 */
 function resetTasteMirrored(){ tasteMirrored = {}; saveTasteMirrored(); }
 
-/* 品味库的条目仓库：建一次、存下来给全站用（渲染层与备份都从它取数据）。 */
+/* 条目元数据的后端：spec 的三层表把「条目元数据（不含图）」划给 localStorage
+   （IndexedDB 只放图片字节）。T1 的适配层契约只有 get/set/delete/keys/ready，
+   这里就地包一个；storage 由调用方传进来，跟 T1 那几个模块一个规矩：
+   键用 T3 给的那个（yuki_taste_v1），前面加一层命名空间只是为了 keys() 只列自己写的。 */
+function makeLocalStorageStore(storageImpl, namespace){
+  var sep=':';
+  function fullKey(key){ return namespace+sep+key; }
+  function keyNotFound(key){
+    var mods=window.__tasteModules||{};
+    if(typeof mods.makeKeyNotFoundError==='function') return mods.makeKeyNotFoundError(key);
+    var err=new Error('键不存在：'+key); err.code='KEY_NOT_FOUND'; return err;
+  }
+  return {
+    ready:Promise.resolve(),
+    get:function(key){
+      try{
+        var raw=storageImpl.getItem(fullKey(key));
+        if(raw==null) return Promise.resolve(undefined);
+        /* 写坏的载荷也当没有（和日记那边 loadAll 的处理一致），
+           契约只要求「读不存在的键不抛错」。 */
+        try{ return Promise.resolve(JSON.parse(raw)); }catch(e){ return Promise.resolve(undefined); }
+      }catch(e){ return Promise.resolve(undefined); }
+    },
+    set:function(key,value){
+      try{ storageImpl.setItem(fullKey(key),JSON.stringify(value)); return Promise.resolve(); }
+      catch(e){ return Promise.reject(e); }
+    },
+    delete:function(key){
+      if(storageImpl.getItem(fullKey(key))==null) return Promise.reject(keyNotFound(key));
+      try{ storageImpl.removeItem(fullKey(key)); return Promise.resolve(); }
+      catch(e){ return Promise.reject(e); }
+    },
+    keys:function(){
+      var out=[];
+      try{
+        for(var i=0;i<storageImpl.length;i++){
+          var k=storageImpl.key(i);
+          if(k&&k.indexOf(namespace+sep)===0) out.push(k.slice(namespace.length+sep.length));
+        }
+      }catch(e){}
+      return Promise.resolve(out.sort());
+    },
+  };
+}
+
+/* 品味库的条目仓库：建一次、存下来给全站用（渲染层与备份都从它取数据）。
+   注意它把 items 缓存在内存里：导入备份、换文件夹这类「库被别人换了」的场合，
+   得重建这个实例，否则渲染读到的还是旧列表。 */
 var tasteRepoPromise=null;function tasteRepo(){
   if(tasteRepoPromise) return tasteRepoPromise;
   tasteRepoPromise=(async function(){
     var mods=window.__tasteModules||{};
     if(typeof mods.createTasteRepo!=='function') throw new Error('品味库的条目仓库模块没加载');
-    if(typeof mods.makeIndexedDBStore!=='function') throw new Error('品味库的存储后端模块没加载');
-    if(typeof indexedDB==='undefined'||!indexedDB) throw new Error('这个浏览器没有 IndexedDB');
-    /* 图片的真相源是 IndexedDB（localStorage 只放元数据）：
-       T3 的仓库写进 store 的载荷已经剥掉图片字节，所以这里不用再操心图片。
-       库名**不能**沿用日记那个 yuki-diary-store：同一个库用同一个版本号再开一次
-       不会触发 upgradeneeded，对象仓库就永远建不出来（实测报
-       "One of the specified object stores was not found"）。日记那边也别动。 */
-    var Store=mods.makeIndexedDBStore(indexedDB);
-    return mods.createTasteRepo({ store:new Store('yuki-taste','taste') });
+    /* 元数据进 localStorage、图片字节进 IndexedDB。T3 写进 store 的载荷已经剥掉
+       图片字节（stripImageData），所以这一份只剩文字，5MB 的配额绰绰有余。
+       键写成 items：最终落在 localStorage 里的名字是 yuki_taste_v1:items。 */
+    return mods.createTasteRepo({ store:makeLocalStorageStore(localStorage,'yuki_taste_v1'), key:'items' });
   })();
   return tasteRepoPromise;
 }
 
 /* 图片字节的真相源：条目元数据进 localStorage，缩略图字节进 IndexedDB。
-   建一次、存下来给全站用。 */
+   建一次、存下来给全站用。
+   库名**不能**沿用日记那个 yuki-diary-store：同一个库用同一个版本号再开一次
+   不会触发 upgradeneeded，对象仓库就永远建不出来（实测报
+   "One of the specified object stores was not found"）。日记那边也别动。 */
 var tasteImagesPromise=null;
 function tasteImages(){
   if(tasteImagesPromise) return tasteImagesPromise;
@@ -5841,6 +6331,13 @@ function blobToDataUrl(blob){
 async function mirrorTaste(){
   if(!dirHandle) return false;
   try{
+    /* 刷新之后浏览器会把写入权限收回成 prompt（restoreFolderHandle 那一步会把
+       folderSyncState 设成 'need'）。调用方多半是「点保存」这类用户手势，
+       趁这个时候把权限要回来；要不到就照旧返回 false，由上层如实告诉用户。 */
+    if(folderSyncState==='need'){
+      if(await fsPermission(dirHandle,true)) setFolderSyncState('ready');
+      else return false;
+    }
     var repo=await tasteRepo();
     var mods=window.__tasteModules||{};
     /* 图片的字节存在 IndexedDB 里（条目元数据里那份 dataUrl 是渲染期的临时物，
@@ -5869,7 +6366,9 @@ async function mirrorTaste(){
 
 /* 验收用的后门（临时）：端到端探针没法在无头浏览器里点系统选文件夹对话框，
    只能把目录句柄直接交给站点（日记那边早就有 __diaryFS.use 先例）。
-   界面接好之后连同这个后门一起删。 */
+   `.shots/probe-t4-disk.mjs` 与 `probe-t5-create.mjs` 都靠它取仓库与目录句柄，
+   所以**不能**在 T5 这一票删；留到 T12 最终验收时，连同 TASTE_FAKE /
+   __tastePreview 一起清掉。 */
 window.__tasteTest={
   repo:tasteRepo,
   images:tasteImages,
@@ -6001,6 +6500,9 @@ document.getElementById('storagePick').addEventListener('click',async function()
     var synced = await syncFolder(true);
     describeStorage();
     if(dirHandle) toast(synced ? '已连接文件夹并完成同步' : '文件夹已连接，但尚未完成同步');
+    /* 连上文件夹就得让品味库当场能用：不补这一下，用户刚选完文件夹，
+       切回品味库仍停在「还没有指定存放的位置」上，直到再切一次视图才醒过来。 */
+    renderTasteSafe();
   }catch(e){
     if(e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) return;
     toast('选择文件夹失败');
@@ -6012,6 +6514,7 @@ document.getElementById('storageReset').addEventListener('click',async function(
   saveSynced();
   setFolderSyncState('browser');
   describeStorage();
+  renderTasteSafe();
   toast('已改回浏览器本地存储');
 });
 (async function restoreFolderHandle(){
@@ -6027,6 +6530,10 @@ document.getElementById('storageReset').addEventListener('click',async function(
       }else{
         setFolderSyncState('need');
       }
+      /* 句柄是**异步**恢复的，而 applyRoute() 那一次 renderTaste() 早就跑完了：
+         不补这一下，刚刷新打开 #/taste 会停在「还没有指定存放的位置」，
+         可条目其实就在本机（元数据在 localStorage、图片在 IndexedDB）。 */
+      renderTasteSafe();
       return;
     }
   }catch(e){}
