@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 
 // 只有带交接标记的块才是「模块」。
-// 站点其余脚本（CDN 兜底换源、壁纸预载、以及第 2191 行起的整个 App）会去碰
+// 站点其余脚本（CDN 兜底换源、壁纸预载、以及第 3090 行起的整个 App）会去碰
 // location / document，抽出来在 Node 里跑没有意义 —— 窄选取比广选取稳。
 const HANDOFF = '__tasteModules';
 
@@ -18,8 +18,20 @@ export function inlineBlocks(html) {
   return out;
 }
 
-export function moduleBlocks(html, marker = HANDOFF) {
-  return inlineBlocks(html).filter((b) => b.src.includes(marker));
+// 只有「品味库」那几个模块块才是模块，判据是块里**真的往交接对象上挂导出**。
+// 两个更笨的判据都被实测否掉了：
+//   1. 只看 __tasteModules 字样 —— 第 3092 行起的整个 App 会读这个对象，误抽 App；
+//   2. 只看那句「测试入口」注释 —— App 块里也含别的块的注释文本（正则抽块只认
+//      <script> 边界，注释在块里就是普通字符），一样误抽 App。
+// 判据必须落在「赋值」这一种真实语法上。
+const HANDOFF_ASSIGN = /window\.__tasteModules\.[A-Za-z_$][\w$]*\s*=/;
+
+export function moduleBlocks(html, criterion = HANDOFF_ASSIGN) {
+  // criterion 允许是正则（默认）或字符串；字符串按「包含」处理。
+  const matches = criterion instanceof RegExp
+    ? (src) => { criterion.lastIndex = 0; return criterion.test(src); }
+    : (src) => src.includes(criterion);
+  return inlineBlocks(html).filter((b) => matches(b.src));
 }
 
 // window 只允许「模块交接」这一件事；读任何别的属性都抛错，
@@ -111,9 +123,11 @@ function makeFence(allowed) {
 }
 
 // 求值模块块。返回 window 桩，模块挂在它的 __tasteModules 上。
-export function loadStoreModule(path, marker = HANDOFF, allowed = LANGUAGE_BUILTINS) {
+// 判据固定是 HANDOFF_ASSIGN —— 从前那个可传的 marker 参数没有任何调用方用过，
+// 留着只会让人以为还有第二种正确的判据。
+export function loadStoreModule(path, allowed = LANGUAGE_BUILTINS) {
   const html = fs.readFileSync(path, 'utf8');
-  const blocks = moduleBlocks(html, marker);
+  const blocks = moduleBlocks(html);
   if (blocks.length === 0) return makeWindowStub(); // 模块还没落地 —— 让断言去报错
   const win = makeWindowStub();
   for (const b of blocks) evalModuleFenced(b.src, win, allowed);

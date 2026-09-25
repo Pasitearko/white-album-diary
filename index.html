@@ -2567,6 +2567,8 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     return out;
   }
 
+  /* 落盘镜像那一块里有一份逐字相同的 `byCreatedAtDesc`：两个块各自独立求值，
+     没有模块系统可以共享。改这里记得改那边（汇总顺序与卡片序号必须一致）。 */
   function byCreatedAtDesc(a, b) {
     var d = (b.createdAt || 0) - (a.createdAt || 0);
     if (d !== 0) return d;
@@ -2708,6 +2710,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     };
   }
 
+  // 测试入口：Node 侧抽这个块、在桩全局下求值，再从 window.__tasteModules 取模块。
   // 交接：和 T1 共用同一个 window.__tasteModules（这个属性是模块代码里唯一的例外）。
   if (typeof window !== 'undefined') {
     try {
@@ -2884,6 +2887,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     };
   }
 
+  // 测试入口：Node 侧抽这个块、在桩全局下求值，再从 window.__tasteModules 取模块。
   // 交接：和 T1 / T3 共用同一个 window.__tasteModules（这是模块代码里唯一的例外）。
   if (typeof window !== 'undefined') {
     try {
@@ -2892,6 +2896,333 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
       window.__tasteModules.buildBackup = buildBackup;
       window.__tasteModules.parseBackup = parseBackup;
       window.__tasteModules.makeBackupUnrecognizedError = makeUnrecognizedError;
+    } catch (e) {}
+  }
+})();
+
+</script>
+
+<script>
+/* ================= 品味库：落盘镜像（T4 / issue #7） ================= */
+/* 把品味库的索引、缩略图与一份人能读的汇总写进磁盘的 `品味库/` 目录。 */
+
+/* 接口（全部不读全局，目录句柄与图片解码器都靠构造参数注入）：
+     TASTE_DIR_NAME                    -> '品味库'
+     tasteImageFilename(id, index)      -> '<条目id>-<n>.jpg'，n 从 1 起
+     tasteLibraryMarkdown(items)        -> 汇总 markdown 全文（按收录时间倒序）
+     mirrorTasteLibrary({dir, items, lastMirrored, blobFromDataUrl})
+        -> Promise<{mirrored, removed}>  这一轮各文件的新记忆
+
+   磁盘**只是镜像，不是真相源**：真相源是 localStorage 里的索引加 IndexedDB 里的
+   图片字节。所以这里只做「把真相源的样子写到磁盘上」，从不把磁盘读回来当数据用。
+   删除因此是「对账」而不是「删文件」：与上一轮记下的文件名比一比，落单的才删。
+   目录句柄在真实事件里没有可靠的枚举手段（`entries()` 不是哪里都有），
+   所以必须靠调用方把上一轮的清单传进来，而不能现读目录。
+   删除失败只吞掉、不抛：磁盘删除无法原子，数据文件和图片分两次写，
+   中途失败会留下「文件在、索引里没有」的中间态；下一次同步按清单对齐即可，
+   为它中断这一轮剩下的写入、或者把状态卡成错误，才是真的坏事。 */
+(function () {
+  'use strict';
+
+  var TASTE_DIR_NAME = '品味库';
+  var INDEX_FILE = 'index.json';
+  var MARKDOWN_FILE = '品味库.md';
+  var IMAGES_DIR = 'images';
+
+  function text(v) {
+    return typeof v === 'string' ? v : (v === null || v === undefined ? '' : String(v));
+  }
+
+  /* 只有真像 data: URL 的东西才准往磁盘上写。
+     这道闸门是拿血换的：字节地址缺失时 text() 会把 Promise 之类的东西
+     变成 "[object Promise]"，旧写法照样判成"有内容"，然后 fetch 它、
+     404 响应体被当成图片写进 images/ —— 文件在、图全坏、一个错都不报。 */
+  function isDataUrl(v) {
+    return typeof v === 'string' && v.indexOf('data:') === 0;
+  }
+
+  /* 条目落进 index.json 之前先去掉图片字节，只留 id / name / addedAt 这些
+     「这张图是什么」的信息。别就地改传进来的对象 —— 同一份 items 这一轮还要
+     用来写图片文件。
+     这一份与仓库块里那份（`index.html` 的 `stripImageData`）是**同一条契约**：
+     两个块各自独立求值、没有模块系统可以共享，所以只能靠守卫写齐 + 测试钉住。
+     非对象的图片项必须原样放过：早先少了这道守卫，`images:[null]` 会被静默
+     改写成空对象，条目就这么烂在 index.json 里、一个错都不报。 */
+  function stripImageData(item) {
+    if (!item.images || !item.images.length) return item;
+    var out = Object.assign({}, item);
+    out.images = item.images.map(function (im) {
+      if (!im || typeof im !== 'object') return im;
+      var copy = Object.assign({}, im);
+      delete copy.dataUrl;
+      return copy;
+    });
+    return out;
+  }
+
+  // 文件名里不该出现的字符（含路径分隔符）统一换成下划线，
+  // 否则一个带 `"` 或 `/` 的 id 会把图写到意料之外的位置。
+  function safeName(v) {
+    return text(v).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_');
+  }
+
+  // 同一条目的多张图靠序号区分，序号取它在数组里的位置（从 1 起）。
+  // 用位置而不是「数第几张有字节的图」，是为了让文件名与 markdown 里引用的
+  // 那一行始终对应同一个下标，缺一张字节也不会整体错位。
+  function tasteImageFilename(id, index) {
+    return safeName(id) + '-' + (Math.floor(index) + 1) + '.jpg';
+  }
+
+  /* 与仓库块里那份 `byCreatedAtDesc` 逐字相同的排序：汇总的顺序必须和网格里的
+     序号一致，两边一旦分头演化，就会出现「卡上是 03、md 里排在第五」。 */
+  function byCreatedAtDesc(a, b) {
+    var d = (b.createdAt || 0) - (a.createdAt || 0);
+    if (d !== 0) return d;
+    // 同一毫秒收录的两条也要有稳定次序，否则两次同步会互相改写同一份汇总
+    return text(a.id) < text(b.id) ? -1 : (text(a.id) > text(b.id) ? 1 : 0);
+  }
+
+  function fmtDay(ts) {
+    var n = typeof ts === 'number' ? ts : 0;
+    var d = new Date(n);
+    function pad(x) { return (x < 10 ? '0' : '') + x; }
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function tasteLibraryMarkdown(items) {
+    var list = (Array.isArray(items) ? items.slice() : []).filter(function (it) {
+      return it && typeof it === 'object';
+    }).sort(byCreatedAtDesc);
+    var out = ['# ' + TASTE_DIR_NAME, '',
+      '> 按收录时间倒序。这个文件是只读的汇总，改它不会影响网站里的数据。', ''];
+    if (!list.length) {
+      out.push('（还没有收藏任何东西）', '');
+      return out.join('\n');
+    }
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      out.push('## ' + (text(it.title) || '（未命名）'), '');
+      out.push('- 收录：' + fmtDay(it.createdAt));
+      if (text(it.subtitle)) out.push('- 副标题：' + text(it.subtitle));
+      if (text(it.url)) out.push('- 网址：' + text(it.url));
+      if (it.tags && it.tags.length) out.push('- 标签：' + it.tags.join('、'));
+      if (text(it.category)) out.push('- 分类：' + text(it.category));
+      if (text(it.note)) out.push('', text(it.note));
+      /* 只给「真有字节」的图写链接：镜像那层会跳过没字节的图、不在磁盘上建那个
+         文件，所以照 images 数组长度写链接会得到一堆死链。文件名的编号仍然用
+         数组里的下标，缺一张也不会让后面的链接指向错文件。 */
+      var imgs = Array.isArray(it.images) ? it.images : [];
+      var hasBytes = [];
+      for (var k = 0; k < imgs.length; k++) {
+        if (imgs[k] && typeof imgs[k] === 'object' && isDataUrl(imgs[k].dataUrl)) hasBytes.push(k);
+      }
+      if (hasBytes.length) {
+        out.push('');
+        for (var j = 0; j < hasBytes.length; j++) {
+          var at = hasBytes[j];
+          out.push('![图' + (at + 1) + '](' + IMAGES_DIR + '/' + tasteImageFilename(it.id, at) + ')');
+        }
+      }
+      out.push('');
+    }
+    return out.join('\n');
+  }
+
+  async function mirrorTasteLibrary(options) {
+    var opt = options || {};
+    var dir = opt.dir;
+    if (!dir || typeof dir.getFileHandle !== 'function' || typeof dir.getDirectoryHandle !== 'function') {
+      throw new TypeError('mirrorTasteLibrary 需要一个目录句柄（构造参数注入）');
+    }
+    var items = (Array.isArray(opt.items) ? opt.items : []).filter(function (it) {
+      return it && typeof it === 'object';
+    }).sort(byCreatedAtDesc);
+    var last = (opt.lastMirrored && typeof opt.lastMirrored === 'object') ? opt.lastMirrored : {};
+    var decode = opt.blobFromDataUrl;
+
+    var mirrored = {};   // 这一轮之后，磁盘上「该有」的文件
+    var removed = [];    // 这一轮真的删掉的（删失败的不算，留给下一轮再试）
+
+    async function writeAt(fileDir, name, data) {
+      var fh = await fileDir.getFileHandle(name, { create: true });
+      var w = await fh.createWritable();
+      await w.write(data);
+      await w.close();
+    }
+    function note(n, label) { return TASTE_DIR_NAME + '/' + n + '（' + label + '）'; }
+
+    var tasteDir = await dir.getDirectoryHandle(TASTE_DIR_NAME, { create: true });
+
+    // 先落索引与汇总，再处理图片：万一中途失败，至少「数据」是完整的。
+    // 索引里**不写图片字节**：base64 会把 index.json 撑大三分之一，而图片本来
+    // 就躺在隔壁 images/ 里，而且 index.json 每轮都是整份覆盖写 —— 一个几十 MB
+    // 的索引每次同步都重写一遍，代价全花在重复的字节上。字节的真相源是
+    // IndexedDB（见文件头的三层表），镜像需要字节时去那儿取，不靠这份索引。
+    var indexData = JSON.stringify({ version: 1, items: items.map(stripImageData) }, null, 2);
+    await writeAt(tasteDir, INDEX_FILE, indexData);
+    mirrored[INDEX_FILE] = note(INDEX_FILE, indexData.length + ' 字节');
+
+    var markdown = tasteLibraryMarkdown(items);
+    await writeAt(tasteDir, MARKDOWN_FILE, markdown);
+    mirrored[MARKDOWN_FILE] = note(MARKDOWN_FILE, markdown.length + ' 字节');
+
+    var imgDir = await tasteDir.getDirectoryHandle(IMAGES_DIR, { create: true });
+    /* keep ＝ 这一份库「在磁盘上应该占着」的图片路径。**它不看字节在不在**：
+       条目还在、图还挂在 images 里，那么磁盘上那份就是唯一的副本 —— 浏览器里
+       的字节可能被清掉了，此时把它当残留删掉，等于亲手抹掉最后一份。真相源说
+       「没有字节」和用户「删了这张图」是两件事，只有条目/图片从库里消失才算删。 */
+    var keep = {};
+    for (var i = 0; i < items.length; i++) {
+      var imgs = Array.isArray(items[i].images) ? items[i].images : [];
+      if (!imgs.length) continue;
+      for (var k = 0; k < imgs.length; k++) {
+        var im = imgs[k];
+        var name = tasteImageFilename(items[i].id, k);
+        var path = IMAGES_DIR + '/' + name;
+        keep[path] = true;
+        if (!im || typeof im !== 'object' || !isDataUrl(im.dataUrl)) continue; // 没有字节就跳过，别写空文件
+        var stamp = typeof im.addedAt === 'number' ? im.addedAt : 0;
+        var token = path + '@' + stamp + '#' + im.dataUrl.length;
+        if (last[path] === token) { mirrored[path] = last[path]; continue; } // 没变就不重复写盘
+        try {
+          var blob = await decode(im.dataUrl);
+          await writeAt(imgDir, name, blob);
+          mirrored[path] = token;
+        } catch (err) {
+          // 单张图失败不拖垮整轮：下一轮还会再试（记忆里没有它）
+        }
+      }
+    }
+
+    // 对账：上一轮写过、这一轮库里已经没有的，删掉。
+    var stale = Object.keys(last).filter(function (p) { return !mirrored[p] && !keep[p]; });
+    for (var s = 0; s < stale.length; s++) {
+      var rel = stale[s];
+      if (rel.indexOf(IMAGES_DIR + '/') !== 0) continue; // 只删图片；索引与汇总永远覆盖写
+      try {
+        await imgDir.removeEntry(rel.slice(IMAGES_DIR.length + 1));
+        removed.push(rel);
+      } catch (err) {
+        mirrored[rel] = last[rel]; // 删不掉就继续记着，下一轮再试
+      }
+    }
+
+    return { mirrored: mirrored, removed: removed };
+  }
+
+  /* ——— 图片字节的真相源（IndexedDB） ———
+     条目元数据进 localStorage，缩略图字节进 IndexedDB，磁盘只是镜像。
+     T3 的仓库写进 store 的载荷已经剥掉 images[].dataUrl，所以「这张图还在不在」
+     只能问这里。键前缀单独留一格，免得以后有人顺手把元数据一起清掉。 */
+  var IMAGE_KEY_PREFIX = 'taste-img:';
+
+  function isFn(v) { return typeof v === 'function'; }
+
+  function makeImageStore(args) {
+    args = args || {};
+    var store = args.store;
+    var makeDataUrl = args.makeDataUrl;
+    if (!store || !isFn(store.get) || !isFn(store.set) || !isFn(store.delete) || !isFn(store.keys)) {
+      throw new TypeError('makeImageStore 需要一个能读、写、删、列四件事的存储后端');
+    }
+    if (!isFn(makeDataUrl)) {
+      throw new TypeError('makeImageStore 需要 makeDataUrl 注入（把字节变成 <img> 能用的地址）');
+    }
+    function keyOf(itemId, imageId) { return IMAGE_KEY_PREFIX + itemId + '/' + imageId; }
+    async function keysOf(itemId) {
+      var all = await store.keys();
+      var head = IMAGE_KEY_PREFIX + itemId + '/';
+      return all.filter(function (k) { return typeof k === 'string' && k.indexOf(head) === 0; });
+    }
+    return {
+      put: async function (itemId, image, blob) {
+        if (blob === undefined || blob === null) return false;
+        await store.set(keyOf(itemId, image.imageId || image.id), blob);
+        return true;
+      },
+      get: async function (itemId, imageId) {
+        return await store.get(keyOf(itemId, imageId));
+      },
+      has: async function (itemId, imageId) {
+        // 不借用 this：解构出去用（var g = images.has）也照样成立。
+        return (await store.get(keyOf(itemId, imageId))) !== undefined;
+      },
+      remove: async function (itemId, imageId) {
+        try { await store.delete(keyOf(itemId, imageId)); } catch (err) {} // 本来就没有也算删好了
+      },
+      removeItem: async function (itemId) {
+        var keys = await keysOf(itemId);
+        for (var i = 0; i < keys.length; i++) {
+          try { await store.delete(keys[i]); } catch (err) {}
+        }
+        return keys.length;
+      },
+      count: async function () {
+        var all = await store.keys();
+        return all.filter(function (k) { return typeof k === 'string' && k.indexOf(IMAGE_KEY_PREFIX) === 0; }).length;
+      },
+    };
+  }
+
+  /* 把条目里每张图的字节从真相源补回来，换成 <img> 能用的地址。
+     读不到字节的图不算错：它只是没有封面，磁盘那一层会跳过它。
+     刻意不改调用方传进来的对象 —— 渲染层还拿着那一份。 */
+  async function hydrateImageDataUrls(items, args) {
+    args = args || {};
+    var images = args.images;
+    var makeDataUrl = args.makeDataUrl;
+    if (!Array.isArray(items)) throw new TypeError('hydrateImageDataUrls 需要一组条目');
+    if (!images || !isFn(images.get)) throw new TypeError('hydrateImageDataUrls 需要一个图片仓库');
+    if (!isFn(makeDataUrl)) throw new TypeError('hydrateImageDataUrls 需要 makeDataUrl 注入');
+
+    var out = [], hydrated = 0, missing = 0;
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var list = (item && item.images) || [];
+      var nextImages = [];
+      for (var j = 0; j < list.length; j++) {
+        var im = list[j];
+        var blob = null;
+        try { blob = await images.get(item.id, im.imageId || im.id); } catch (err) { blob = null; }
+        if (blob === undefined || blob === null) {
+          missing++;
+          nextImages.push(Object.assign({}, im, { dataUrl: undefined }));
+          continue;
+        }
+        hydrated++;
+        /* makeDataUrl 允许是异步的（站点的 blobToDataUrl 就走 FileReader），
+           少一个 await 会让 dataUrl 变成 Promise —— 落盘那层拿它去 fetch 会
+           静默写进一个 404 响应体，图片看着"写成功了"其实是坏的。 */
+        nextImages.push(Object.assign({}, im, { dataUrl: await makeDataUrl(blob) }));
+      }
+      out.push(Object.assign({}, item, { images: nextImages }));
+    }
+    return { items: out, hydrated: hydrated, missing: missing };
+  }
+
+  var mods = {
+    TASTE_DIR_NAME: TASTE_DIR_NAME,
+    tasteImageFilename: tasteImageFilename,
+    tasteLibraryMarkdown: tasteLibraryMarkdown,
+    mirrorTasteLibrary: mirrorTasteLibrary,
+    makeImageStore: makeImageStore,
+    hydrateImageDataUrls: hydrateImageDataUrls,
+  };
+
+  // 测试入口：Node 侧抽这个块、在桩全局下求值，再从 window.__tasteModules 取模块。
+  // 如 T1 / T3 / T8，这里只**补**自己的导出，不整体覆盖。
+  if (typeof window !== 'undefined') {
+    try {
+      if (!window.__tasteModules || typeof window.__tasteModules !== 'object') {
+        window.__tasteModules = {};
+      }
+      window.__tasteModules.TASTE_DIR_NAME = mods.TASTE_DIR_NAME;
+      window.__tasteModules.tasteImageFilename = mods.tasteImageFilename;
+      window.__tasteModules.tasteLibraryMarkdown = mods.tasteLibraryMarkdown;
+      window.__tasteModules.mirrorTasteLibrary = mods.mirrorTasteLibrary;
+      window.__tasteModules.makeImageStore = mods.makeImageStore;
+      window.__tasteModules.hydrateImageDataUrls = mods.hydrateImageDataUrls;
     } catch (e) {}
   }
 })();
@@ -5282,7 +5613,15 @@ function tasteNotReady(){
 }
 document.addEventListener('click',function(e){
   var t=e.target;
-  if(t.closest&&(t.closest('#tasteNewCard')||t.closest('#tastePickFolder')||t.closest('#tasteClearFilter')))tasteNotReady();
+  if(!t.closest)return;
+  /* 空态里的「选择文件夹」不另起一套选盘流程：直接把侧栏那个存储按钮点一下，
+     复用既有的存储弹窗（授权、换文件夹、状态文字都在那儿）。 */
+  if(t.closest('#tastePickFolder')){
+    var pickBtn=document.getElementById('storageBtn');
+    if(pickBtn)pickBtn.click(); else tasteNotReady();
+    return;
+  }
+  if(t.closest('#tasteNewCard')||t.closest('#tasteClearFilter'))tasteNotReady();
 });
 
 /* ================= 本地文件夹存储（File System Access API） ================= */
@@ -5439,6 +5778,106 @@ async function fsPermission(handle,interactive){
     return (await handle.requestPermission({mode:'readwrite'})) === 'granted';
   }catch(e){ return false; }
 }
+/* —— 品味库接进同一条同步流程（T4 / issue #7）——
+   品味库共用日记那个根文件夹，不另开句柄，也不给独立的同步指示：
+   这一票只负责「把真相源的样子写进磁盘」，界面上的新建与筛选在后面的票里。 */
+var TASTE_MIRROR_KEY='yuki_taste_mirror_v1';
+var tasteMirrored=(function(){ try{ return JSON.parse(localStorage.getItem(TASTE_MIRROR_KEY))||{}; }catch(e){ return {}; } })();
+function saveTasteMirrored(){ try{ localStorage.setItem(TASTE_MIRROR_KEY,JSON.stringify(tasteMirrored)); }catch(e){} }
+/* 换文件夹＝换了一块磁盘，记忆里那些「我写过这张图」当场作废：新文件夹里没有
+   这些文件，可记忆会让每一张图都跳过写盘，结果是新文件夹只有 index.json 与
+   品味库.md、images/ 空空如也。日记那边同时清 lastSynced，是同一个道理。 */
+function resetTasteMirrored(){ tasteMirrored = {}; saveTasteMirrored(); }
+
+/* 品味库的条目仓库：建一次、存下来给全站用（渲染层与备份都从它取数据）。 */
+var tasteRepoPromise=null;function tasteRepo(){
+  if(tasteRepoPromise) return tasteRepoPromise;
+  tasteRepoPromise=(async function(){
+    var mods=window.__tasteModules||{};
+    if(typeof mods.createTasteRepo!=='function') throw new Error('品味库的条目仓库模块没加载');
+    if(typeof mods.makeIndexedDBStore!=='function') throw new Error('品味库的存储后端模块没加载');
+    if(typeof indexedDB==='undefined'||!indexedDB) throw new Error('这个浏览器没有 IndexedDB');
+    /* 图片的真相源是 IndexedDB（localStorage 只放元数据）：
+       T3 的仓库写进 store 的载荷已经剥掉图片字节，所以这里不用再操心图片。
+       库名**不能**沿用日记那个 yuki-diary-store：同一个库用同一个版本号再开一次
+       不会触发 upgradeneeded，对象仓库就永远建不出来（实测报
+       "One of the specified object stores was not found"）。日记那边也别动。 */
+    var Store=mods.makeIndexedDBStore(indexedDB);
+    return mods.createTasteRepo({ store:new Store('yuki-taste','taste') });
+  })();
+  return tasteRepoPromise;
+}
+
+/* 图片字节的真相源：条目元数据进 localStorage，缩略图字节进 IndexedDB。
+   建一次、存下来给全站用。 */
+var tasteImagesPromise=null;
+function tasteImages(){
+  if(tasteImagesPromise) return tasteImagesPromise;
+  tasteImagesPromise=(async function(){
+    var mods=window.__tasteModules||{};
+    if(typeof mods.makeImageStore!=='function') throw new Error('品味库的图片仓库模块没加载');
+    if(typeof indexedDB==='undefined'||!indexedDB) throw new Error('这个浏览器没有 IndexedDB');
+    var Store=mods.makeIndexedDBStore(indexedDB);
+    return mods.makeImageStore({ store:new Store('yuki-taste-images','taste-images'), makeDataUrl:blobToDataUrl });
+  })();
+  return tasteImagesPromise;
+}
+
+/* 把 Blob 变成 <img> 能用的地址。用 FileReader.readAsDataURL：它不碰网络、
+   在 file:// 下照样能用（那条路上唯一踩过的坑是 fetch 本地文件会被 CORS 拦，
+   而 data:/blob: 两种 URL 是安全的）。 */
+function blobToDataUrl(blob){
+  if(typeof FileReader==='undefined') return Promise.resolve('');
+  return new Promise(function(resolve,reject){
+    var r=new FileReader();
+    r.onload=function(){ resolve(String(r.result||'')); };
+    r.onerror=function(){ reject(r.error||new Error('读不出这张图')); };
+    r.readAsDataURL(blob);
+  });
+}
+
+/* 把品味库镜像到磁盘。返回 false 表示这一票还没法同步（没连文件夹）。
+   任何失败都不往外抛：磁盘只是镜像，真相源没坏就不该让整条同步流程崩掉。 */
+async function mirrorTaste(){
+  if(!dirHandle) return false;
+  try{
+    var repo=await tasteRepo();
+    var mods=window.__tasteModules||{};
+    /* 图片的字节存在 IndexedDB 里（条目元数据里那份 dataUrl 是渲染期的临时物，
+       刷新就没了）。落盘前必须把字节从真相源补回来，否则磁盘上永远没有图。 */
+    var images=await tasteImages();
+    var items=await repo.list();
+    var hydrated=await mods.hydrateImageDataUrls(items,{ images:images, makeDataUrl:blobToDataUrl });
+    var res=await mods.mirrorTasteLibrary({
+      dir:dirHandle,
+      items:hydrated.items,
+      lastMirrored:tasteMirrored,
+      /* 图片字节从 IndexedDB 水合出来的 data URL 解码，和日记那条路一样走 fetch：
+         file:// 下 fetch('data:...') 是安全的，读磁盘文件反而不行。 */
+      blobFromDataUrl:async function(dataUrl){ return await (await fetch(dataUrl)).blob(); },
+    });
+    tasteMirrored=res.mirrored;
+    saveTasteMirrored();
+    return true;
+  }catch(err){
+    /* 磁盘只是镜像：这里失败不该让整条同步流程崩掉，但也不能一句话都不留 ——
+       验收用的后门会把最后一次失败原样报出来，省得现场只能靠猜。 */
+    if(window.__tasteTest) window.__tasteTest.lastMirrorError=String(err&&err.message||err);
+    return false;
+  }
+}
+
+/* 验收用的后门（临时）：端到端探针没法在无头浏览器里点系统选文件夹对话框，
+   只能把目录句柄直接交给站点（日记那边早就有 __diaryFS.use 先例）。
+   界面接好之后连同这个后门一起删。 */
+window.__tasteTest={
+  repo:tasteRepo,
+  images:tasteImages,
+  mirror:mirrorTaste,
+  hasFolder:function(){ return !!dirHandle; },
+  use:function(h){ return window.__diaryFS.use(h); },
+};
+
 async function syncFolder(interactive){
   if(!dirHandle) return false;
   if(syncing){ syncPending = true; return false; }
@@ -5473,6 +5912,7 @@ async function syncFolder(interactive){
       lastSynced[k] = snap;
     }
     saveSynced();
+    await mirrorTaste();
     setFolderSyncState('ok');
     return true;
   }catch(err){
@@ -5553,6 +5993,7 @@ document.getElementById('storagePick').addEventListener('click',async function()
     var h = await window.showDirectoryPicker({id:'yuki-diary',mode:'readwrite',startIn:'documents'});
     dirHandle = h;
     lastSynced = {};
+    resetTasteMirrored();
     storageStatus.folderLastSuccess = null;
     storageStatus.folderError = '';
     saveStorageStatus();
@@ -5566,7 +6007,7 @@ document.getElementById('storagePick').addEventListener('click',async function()
   }
 });
 document.getElementById('storageReset').addEventListener('click',async function(){
-  dirHandle = null; lastSynced = {};
+  dirHandle = null; lastSynced = {}; resetTasteMirrored();
   try{ await idbDel('dir'); }catch(e){}
   saveSynced();
   setFolderSyncState('browser');
@@ -5592,7 +6033,7 @@ document.getElementById('storageReset').addEventListener('click',async function(
   updateStorageUI('browser');
 })();
 /* 便于排查/手动测试的内置钩子 */
-window.__diaryFS = { md: dayMarkdown, sync: syncFolder, use: function(h){ dirHandle = h; lastSynced = {}; folderSyncState = 'ready'; updateStorageUI('ready'); } };
+window.__diaryFS = { md: dayMarkdown, sync: syncFolder, use: function(h){ dirHandle = h; lastSynced = {}; resetTasteMirrored(); folderSyncState = 'ready'; updateStorageUI('ready'); } };
 
 /* ================= 移动端：更多工具 ================= */
 function initMobileMore(){
