@@ -30,7 +30,7 @@
 })();
 </script>
 <style>
-/* build:153007-63633 */
+/* build:154306-63983 */
 /* ==========================================================================
    白色相簿 · 样式表
    骨架 = macOS 桌面应用（8pt 网格 / 同心圆角 / 材质只属导航层）
@@ -1026,6 +1026,13 @@ body[data-theme="dark"] .heat-cell.l1{background:var(--ice800);border-color:var(
 body[data-theme="dark"] .heat-cell.l2{background:var(--ice600);border-color:var(--ice600)}
 body[data-theme="dark"] .heat-cell.l3{background:var(--ice400);border-color:var(--ice400)}
 body[data-theme="dark"] .heat-cell.l4{background:var(--ice200);border-color:var(--ice200)}
+/* 触屏没有 hover，title 不会出现；格子现在可以点，得给出「能点」的暗示。
+   只给网格里的格子——图例里那几个同样的 .heat-cell 不可点，不能一起吃 cursor。
+   选中环用 --ring（项目里输入框聚焦用的同一个半透明令牌）：它在明暗两套主题下都能
+   压住四档底色，换 --accent 会在最深的 l4 上糊掉。box-shadow 不吃布局，不会挤到邻格。
+   环的存在时长由 JS 控制（2200ms，与 toast 同长），CSS 这边不做过渡。 */
+.heat-grid .heat-cell{cursor:pointer}
+.heat-grid .heat-cell.on{box-shadow:0 0 0 2px var(--ring)}
 .heat-side{
   display:flex;flex-direction:column;justify-content:center;gap:18px;
   align-self:stretch;padding-left:40px;
@@ -3906,7 +3913,8 @@ function renderStats(){
        「2026-09-2514 字」，读的人会把日期末尾的数字当成字数的一部分。
        下面「无日记」那一支本来就有这个空格，两边要一致。 */
     var title=k+(list.length?('　'+w+' 字'+(list.length>1?('　'+list.length+' 篇'):'')):'　无日记');
-    cells+='<div class="heat-cell'+(lv?' l'+lv:'')+'" title="'+title+'"></div>';
+    /* data-key 是给点击用的：触屏读不到 title，得知道被点的是哪一天。 */
+    cells+='<div class="heat-cell'+(lv?' l'+lv:'')+'" data-key="'+k+'" title="'+title+'"></div>';
   }
   document.getElementById('heatGrid').innerHTML=cells;
 
@@ -4004,6 +4012,22 @@ function renderStats(){
     '<tr><td colspan="4" class="state-cell">还没有数据</td></tr>';
 }
 window.addEventListener('resize',function(){charts.forEach(function(c){c.resize();});});
+/* 点热力图格子，读这一天的明细。
+   为什么必须有点击：title 是原生 tooltip，**触屏设备上根本不弹**——手机上这整块
+   是「看得到颜色、读不到数字」。所以同一份数据要有一条点得到的通道。
+   文案直接复用 title，不另写一份：tooltip 和 toast 说的话永远一致，改一处两处都变。
+   监听挂在 #heatGrid 上而不是逐个格子：格子每次渲染都整个重建，逐个绑会漏。
+   环 2200ms 与 toast 同长，让「这条消息说的是哪个格子」有落点。 */
+document.getElementById('heatGrid').addEventListener('click',function(e){
+  var cell=e.target.closest('.heat-cell');
+  if(!cell||!cell.dataset.key)return;
+  var prev=this.querySelector('.heat-cell.on');
+  if(prev){prev.classList.remove('on');clearTimeout(prev._onT);}
+  cell.classList.add('on');
+  clearTimeout(cell._onT);
+  cell._onT=setTimeout(function(){cell.classList.remove('on');},2200);
+  toast(cell.title);
+});
 
 /* ================= 导出备份 ================= */
 document.getElementById('exportBtn').addEventListener('click',function(){
