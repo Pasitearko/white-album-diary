@@ -30,7 +30,7 @@
 })();
 </script>
 <style>
-/* build:121401-59860 */
+/* build:122909-60224 */
 /* ==========================================================================
    白色相簿 · 样式表
    骨架 = macOS 桌面应用（8pt 网格 / 同心圆角 / 材质只属导航层）
@@ -547,7 +547,15 @@ body[data-theme="dark"] .diary-card.typing::after{opacity:.5}
              border-color var(--dur-micro) var(--ease-out),
              color var(--dur-micro) var(--ease-out);
 }
-.tag svg{flex-shrink:0}
+/* 天气图标由 JS 生成，标记里没有 width/height 属性，必须在这里给死尺寸——
+   否则浏览器会按 viewBox 比值自行推算，晴/阴/雨/雪 变成 18px、多云变成 31px，
+   SVG 撑破胶囊而文字被挤到边框外。 */
+.tag svg{flex-shrink:0;width:14px;height:14px}
+/* 天气那行是 5 枚「图标 + 文字」胶囊，而侧栏内容宽只有 298px：按心境的 13px 内边距
+   算需要 341px，会挤掉最后一枚变成 4+1 的断行。这里单独收窄天气胶囊（4 枚单字 +
+   1 枚双字），5 枚合计 292px，一行放得下；外面看上去尺寸和心境胶囊接近，
+   因为多出来的那 14px 是图标本身。 */
+#weatherTags .tag{padding:0 9px;gap:4px}
 @media (hover:hover) and (pointer:fine){
   .tag:hover{border-color:var(--accent);color:var(--accent)}
 }
@@ -649,7 +657,7 @@ body[data-theme="dark"] .diary-card.typing::after{opacity:.5}
   letter-spacing:var(--track-wide);text-transform:uppercase;
   color:var(--text-muted);margin-bottom:8px;
 }
-.side-tagline{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}
+.side-tagline{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
 .side-tagline:last-child{margin-bottom:0}
 
 .side-words{display:flex;flex-direction:column;gap:2px}
