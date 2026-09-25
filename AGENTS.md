@@ -23,3 +23,5 @@ When writing or editing files here:
 - Write LF. Do not introduce CRLF.
 - Binary assets (`*.png`, `*.jpg`, `*.jpeg`, `*.webp`, `*.gif`, `*.ico`, `*.jfif`) are marked `binary` in `.gitattributes` and must be left byte-for-byte untouched.
 - Verify with `git ls-files --eol`: every text file should read `i/lf` and `w/lf`.
+
+One deliberate exception: `*.bat` and `*.cmd` are marked `text eol=crlf`, because pure-LF batch files break in some edge cases (`goto` targets, older `cmd`). For those two, `i/lf w/crlf` is correct — LF in the repo, CRLF on disk. Nothing in this repo uses them yet; the rule is there for when something does.
