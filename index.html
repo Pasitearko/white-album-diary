@@ -2338,8 +2338,17 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 
   // 测试入口：Node 侧抽这个块、在桩全局下求值，再从 window.__tasteModules 取模块。
   // 交接用的属性是这里唯一的例外，模块代码本身不读它。
+  // 这里跟 T3 / T8 一样只**补**自己的导出，不整体覆盖 —— 万一将来求值顺序变了
+  // （比如按文件名排序而不是按源码顺序），整体赋值会把 T3 / T8 的导出静默抹掉。
   if (typeof window !== 'undefined') {
-    try { if (!window.__tasteModules) window.__tasteModules = mods; } catch (e) {}
+    try {
+      if (!window.__tasteModules || typeof window.__tasteModules !== 'object') {
+        window.__tasteModules = {};
+      }
+      window.__tasteModules.makeKeyNotFoundError = mods.makeKeyNotFoundError;
+      window.__tasteModules.MemoryStore = mods.MemoryStore;
+      window.__tasteModules.makeIndexedDBStore = mods.makeIndexedDBStore;
+    } catch (e) {}
   }
 })();
 
