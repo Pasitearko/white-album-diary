@@ -30,7 +30,7 @@
 })();
 </script>
 <style>
-/* build:122909-60224 */
+/* build:144801-61846 */
 /* ==========================================================================
    白色相簿 · 样式表
    骨架 = macOS 桌面应用（8pt 网格 / 同心圆角 / 材质只属导航层）
@@ -269,12 +269,11 @@ main{
 }
 .view{display:none;max-width:1320px;margin:0 auto}
 .view.active{display:block}
-/* 入场：错峰 40ms，位移 8px，透明度承担主要变化 */
-.view.active>*{animation:riseIn var(--dur-screen) var(--ease-out) both}
+/* 入场：错峰一档 40ms，位移 8px，透明度承担主要变化。
+   时长压到 --dur-med：导航是每天几十次的动作，300ms + 4 档错峰会拖到 460ms，
+   实测 727px 的 .browse-grid 要到 351ms 才完全不透明，超出 300ms 预算。 */
+.view.active>*{animation:riseIn var(--dur-med) var(--ease-out) both}
 .view.active>*:nth-child(2){animation-delay:40ms}
-.view.active>*:nth-child(3){animation-delay:80ms}
-.view.active>*:nth-child(4){animation-delay:120ms}
-.view.active>*:nth-child(n+5){animation-delay:160ms}
 @keyframes riseIn{from{opacity:0;transform:translate3d(0,8px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
 
 /* ---------- 6 · 视图标题 ---------- */
@@ -325,7 +324,22 @@ body[data-theme="dark"] .view-head::before{
 .side-date .wd{font-size:var(--fs-3);font-weight:500;color:var(--text-muted)}
 .side-date .wm{font-size:var(--fs-1);color:var(--text-muted);margin-top:2px;font-variant-numeric:tabular-nums}
 
-.nav{display:flex;flex-direction:column;gap:2px;margin:0 -6px}
+.nav{position:relative;display:flex;flex-direction:column;gap:2px;margin:0 -6px}
+/* 选中指示器：单个元素在各项之间滑动，而不是两份底色对着淡。
+   用真实元素而不是 .nav::before，因为伪元素只能靠改 .nav 上的 CSS 变量来驱动 transform，
+   那会触发整棵子树的样式重算（动画审查的当场开火项）。真实元素可以直接写 transform。
+   真实元素还是 flex 子项，所以用 position:absolute 脱出流：绝对定位的 flex 子项不占主轴空间。 */
+.nav-indicator{
+  position:absolute;left:0;top:0;z-index:0;
+  width:100%;height:44px;border-radius:var(--r-sm);
+  background:var(--accent-soft);
+  pointer-events:none;
+  opacity:0;
+  transition:transform var(--dur-med) var(--ease-out),
+             opacity var(--dur-micro) var(--ease-out);
+}
+.nav-indicator.on{opacity:1}
+@media (prefers-contrast:more){ .nav-indicator{background:var(--accent)} }
 .nav-item{
   display:flex;align-items:center;gap:10px;
   min-height:44px;padding:0 14px;
@@ -333,15 +347,25 @@ body[data-theme="dark"] .view-head::before{
   font-size:var(--fs-4);font-weight:500;
   color:var(--text);
   text-align:left;
-  transition:background-color var(--dur-micro) var(--ease-out),
-             color var(--dur-micro) var(--ease-out);
+  /* 只过渡文字与图标颜色。选中态的底色改由 .nav-indicator 承担：
+     两个按钮各自交叉淡入时，中间没有任何元素持有满强度底色（实测 0.67/0.33），看得出接缝。 */
+  transition:color var(--dur-micro) var(--ease-out);
+  /* 指示器在按钮底下，文字要浮上来 */
+  position:relative;z-index:1;
 }
 .nav-item svg{flex-shrink:0;color:var(--text-muted);transition:color var(--dur-micro) var(--ease-out)}
 @media (hover:hover) and (pointer:fine){
   .nav-item:hover{background:var(--surface-sunken)}
   .nav-item:hover svg{color:var(--text)}
 }
-.nav-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+/* 选中态只改文字/图标颜色。两层理由：
+   ① 底色已由 .nav-indicator 独占（这里再写一份 background 等于同一视觉由两个属性描述，
+      一旦指示器还在过渡、底色已经到位，就会看到第二层底色闪一下）；
+   ② 不再用 font-weight 表达选中（交接文档 Q20 与靶点 B 落地要点都点名禁止）。
+      实测依据：本页用 Noto Sans SC **可变字体**，500→600 的 advance width 差为 0（deltaPx: 0），
+      文字不会重排、不会抖；但 CSS 的 font-weight 本来就不可过渡，它是离散跳变，
+      既给不出「顺」的观感，又会和 hover 的底色叠加成两种层级语言。层级改由指示器的底重承担。 */
+.nav-item.active{color:var(--accent)}
 .nav-item.active svg{color:var(--accent)}
 
 .side-foot{margin-top:auto;padding-top:20px;display:flex;flex-direction:column;gap:2px}
@@ -1096,10 +1120,19 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   display:flex;align-items:center;gap:9px;
   max-width:0;padding-left:0;opacity:0;overflow:hidden;pointer-events:none;
   transform:translateX(12px) scale(.97);
+  /* 纪律取舍（review-animations 靶点 A）：max-width 是布局属性，动画它每帧付 layout 代价。
+     但「从 46px 唱片里抽出一条控制条」正是这个组件存在的原因，改成 clip-path / scaleX
+     会把按钮压扁再拉回来，反而更难看。这里保留 max-width，只做两件事降成本：
+     ① padding-left 不再平滑过渡，改为 0s 过渡 + 延迟，在展开跑完之后瞬间补上（见下一条规则）。
+        不能让它「立刻到位」：收起态容器宽 0，若 padding 瞬间变成 12px，三个按钮会以
+        各自满宽挤在裁切窗口里闪一帧。
+     ② 时长压在 --dur-med(200ms)，不再加长。
+     实测这段 reflow 只发生在 3.5px 高的浮层内、每次展开一次，不是滚动/拖拽路径上的
+     持续布局动画，因此不适用 fixing-motion-performance 的 critical never-pattern。 */
   transition:max-width var(--dur-micro) var(--ease-out),
              opacity var(--dur-press) var(--ease-out),
              transform var(--dur-micro) var(--ease-out),
-             padding-left var(--dur-micro) var(--ease-out);
+             padding-left 0s var(--dur-micro);
 }
 .noise-panel.open .noise-ctl,
 .noise-panel:focus-within .noise-ctl{
@@ -1108,7 +1141,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   transition:max-width var(--dur-med) var(--ease-out),
              opacity var(--dur-micro) var(--ease-out),
              transform var(--dur-med) var(--ease-out),
-             padding-left var(--dur-med) var(--ease-out);
+             padding-left 0s var(--dur-med);
 }
 @media (hover:hover) and (pointer:fine){
   .noise-panel:hover .noise-ctl{
@@ -1117,7 +1150,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     transition:max-width var(--dur-med) var(--ease-out),
                opacity var(--dur-micro) var(--ease-out),
                transform var(--dur-med) var(--ease-out),
-               padding-left var(--dur-med) var(--ease-out);
+               padding-left 0s var(--dur-med);
   }
 }
 .noise-btn{
@@ -1509,6 +1542,12 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     transition:opacity var(--dur-wallpaper) var(--ease-in-out)!important;
     transform:none!important;
   }
+  /* 例外：唱片转动是持续旋转，不适用 .01ms+单次那套（会变成转一帧然后停住）。
+     这里改为显式静止；形状、封面、阴影都还在，只是不转。 */
+  .noise-disc.spin .disc-cover{
+    animation:none!important;
+    animation-play-state:paused!important;
+  }
   .view.active>*{animation:none}
   .ice-ripple,.ice-flake{display:none}
   .diary-card::after{transition:none}
@@ -1560,6 +1599,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
       <div class="wm" id="sideDate"></div>
     </div>
     <nav class="nav" id="nav">
+      <div class="nav-indicator" id="navIndicator" aria-hidden="true"></div>
       <button class="nav-item active" data-route="today">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><path d="M8 3v4M16 3v4M4 10h16M8 14h5M8 17.5h8"/></svg>
         今日执笔
@@ -2156,6 +2196,27 @@ function askConfirm(title,desc,okLabel,onOk,danger){
 
 /* ================= 路由 ================= */
 var routes=['today','browse','stats','trash'];
+/* 选中指示器的位移：直接量当前按钮相对 .nav 的偏移，不写死 46px——
+   窄屏（≤960px）导航会从竖排换成横排，写死行距当场就错。
+   关键：改了 transform 而 transition 正好是 none 时，这个「跳」会被直接落定、
+   之后再也补不出滑动。所以跳位置必须和恢复过渡分在两帧：
+   第 1 帧（过渡仍为 none）只负责把指示器藏起来；rAF 那一帧才恢复过渡一起改 transform，
+   滑动就从旧位置开始了。同步函数里因此不能再设 transition——
+   在 rAF 里把过渡设回 none 会立刻取消刚起步的滑动。 */
+function syncNavIndicator(instant){
+  var nav=document.getElementById('nav'),ind=document.getElementById('navIndicator');
+  if(!nav||!ind)return;
+  var b=nav.querySelector('.nav-item.active');
+  if(!b){ind.classList.remove('on');return;}
+  var nr=nav.getBoundingClientRect(),br=b.getBoundingClientRect();
+  var tx='translate3d('+Math.round(br.left-nr.left)+'px,'+Math.round(br.top-nr.top)+'px,0)';
+  var th=Math.round(br.height)+'px';
+  if(instant){ ind.style.height=th; ind.style.transform=tx; ind.classList.add('on'); return; }
+  ind.classList.remove('on');                 /* 藏起来（过渡已恢复正常，会淡出） */
+  requestAnimationFrame(function(){
+    ind.style.height=th; ind.style.transform=tx; void ind.offsetWidth; ind.classList.add('on');
+  });
+}
 function go(route){
   if(routes.indexOf(route)<0)route='today';
   location.hash='#/'+route;
@@ -2169,6 +2230,16 @@ function applyRoute(){
   document.querySelectorAll('.nav-item').forEach(function(b){
     b.classList.toggle('active',b.dataset.route===route);
   });
+  var navInd=document.getElementById('navIndicator');
+  if(navInd){
+    /* 切换时先把过渡关掉：本帧只把指示器藏起来并落在原位置（这一步不该被看见），
+       过渡交还给 syncNavIndicator 里那一帧，滑动才从旧位置开始。 */
+    var first=!navInd.dataset.ready;
+    if(!first)navInd.style.transition='none';
+    syncNavIndicator(first);
+    if(!first)navInd.style.transition='';
+    navInd.dataset.ready='1';
+  }
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   document.getElementById('view-'+route).classList.add('active');
   if(route==='browse')renderBrowse();
