@@ -47,7 +47,7 @@
 
 《白色相簿》是一本跑在浏览器里的日记本。整个应用只有一个 `index.html`：不用安装、不用命令行、不用构建，双击就能写；没有服务器、没有账号，写下的内容默认只留在你自己的浏览器里。
 
-视觉上沿用《WHITE ALBUM 2》的白与冰蓝：思源宋体、落雪、壁纸与背景音。它想做的不是「效率工具」，而是一个安静的角落——今天可以慢慢写，写下的会封存，只可重读。
+视觉上沿用《WHITE ALBUM 2》的白与冰蓝，骨架取 macOS 桌面应用的那套设计语言：侧栏是唯一一处大面积的材质玻璃，内容卡片一律实色，层级靠明度与留白而不是靠边框和阴影堆出来。字体分工是刻意的——**你用宋体写字，界面用黑体跟你说话**。落雪、壁纸与背景音负责氛围。它想做的不是「效率工具」，而是一个安静的角落——今天可以慢慢写，写下的会封存，只可重读。
 
 ## 功能特性
 
@@ -69,6 +69,8 @@
 - **正文字号** 7 档：小五 12 / 五号 14 / 小四 16 / 四号 18 / 小三 20 / 小二 24 / 二号 28
 - **正文字重** 7 档：200 – 900
 - 写作区与阅读区共用同一套设置，选择会记在本地；字体用**思源宋体可变字体**，每一档字重都是真字重，而不是浏览器猜出来的伪粗
+- 正文栏宽约 660px（一行约 40 字）、行高 1.8——中文的舒适行长是 30–40 字，空气应该留在文字两侧，而不是堆在行与行之间
+- 界面元素（导航、按钮、标签、表格）走**思源黑体**，最小字号 12px；中文正文不做字距调整（字距只给英文眉题与数字）
 
 ### 翻阅过往
 
@@ -102,7 +104,9 @@
 
 - **背景音**：After All〜綴る想い〜 (Inst.)（WHITE ALBUM 2 OST）或雨声，带音量条；触屏设备上点唱片先展开面板，再点播放 / 暂停
 - **壁纸随视图切换**：今日执笔按日期在日常 / CG 之间轮换，翻阅过往是小镇静景，写作统计是夜空，垃圾桶是那张专用的
+- **壁纸看得见，文字也看得清**：遮罩强度、壁纸不透明度与卡片不透明度是一组参数一起调的——壁纸退、卡片实，而不是把画面整个漂白
 - **落雪与浮光**：Canvas 绘制的雪花，跟随窗口尺寸重排；页面切到后台会暂停，并尊重系统的「减少动态效果」设置
+- **打字反馈**：每敲一个字，光标处会晕开一小点冰蓝墨迹（上限 6 个并发）；按「保存今日」时会散开五片冰晶——同一批元素，从持续装饰改成仪式时刻的一次性反馈
 
 ## 快速开始
 
@@ -124,17 +128,28 @@
 | 层面 | 选型 |
 | --- | --- |
 | 界面 | 原生 HTML / CSS / JavaScript，无框架、无构建 |
-| 排版 | 思源宋体可变字重（Fontsource CDN） |
+| 排版 | 思源宋体（正文与标题）+ 思源黑体（界面），均为可变字重（Fontsource CDN） |
 | 图表 | [ECharts](https://echarts.apache.org/) 5.5.1 |
 | 长图导出 | [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) 2.4.3 |
 | 存储 | localStorage · IndexedDB · File System Access API |
 | 托管 | GitHub Pages |
+
+## 设计系统
+
+界面不是「调出来」的，是按一套写下来的规矩做的，完整规格在 [`DESIGN.md`](DESIGN.md)：
+
+- **令牌层**：所有颜色、字号、圆角、间距、时长都先定义成语义令牌（`--surface` / `--text-muted` / `--accent` / `--fs-1…11` / `--r-*` / `--z-*`），组件只引用令牌。暗色主题重新映射同一批令牌，而不是另写一套样式
+- **层级**：z-index 是一条固定的标尺（内容 0 / 导航 100 / 浮层 300 / Toast 400），不再各自写魔法数字
+- **材质**：玻璃只给导航层（侧栏、Toast、模态）；内容卡片全部实色，正文永远不会坐在半透明上
+- **可读性**：功能性与次要文字按 WCAG AA（4.5:1）验收，实测四个视图最坏值 5.0:1 以上
+- **动效**：曲线与弹簧用 Apple 的那一套（默认不弹），时长只留 100 / 150 / 200 / 300ms 四档；`prefers-reduced-motion`、`prefers-reduced-transparency`、`prefers-contrast` 都有对应处理
 
 ## 项目结构
 
 ```
 white-album-diary/
 ├── index.html              整个应用：HTML + CSS + JS 全部在这里
+├── DESIGN.md               设计系统规格（令牌表、组件规范、Do's and Don'ts）
 ├── wallpaper-day.jpg       壁纸 · 日常（今日执笔，与 CG 按日期轮换）
 ├── wallpaper-cg.jpg        壁纸 · CG（今日执笔，与日常按日期轮换）
 ├── wallpaper-town.jpg      壁纸 · 小镇（翻阅过往）
@@ -144,6 +159,7 @@ white-album-diary/
 ├── cover-introductory.jpg  唱片封面 · 背景音乐
 ├── cover-rain.svg          唱片封面 · 雨声
 ├── docs/                   README 用截图
+│   └── agents/             给 AI 代理看的仓库约定
 └── README.md
 ```
 
@@ -153,7 +169,7 @@ white-album-diary/
 
 - 第三方库（ECharts、html2canvas-pro）优先走国内镜像（阿里 npmmirror），实测 388KB 的 ECharts 只要 0.2 秒；取不到时自动回落到 jsDelivr
 - 壁纸改成用到哪张才下载哪张，并且是 WebP（单张 45–146KB）：线上从 jsDelivr 取，国内直连实测 0.7 秒左右，比直连 github.io 快 7–10 倍；取不到时退回同目录文件
-- 字体留在 jsDelivr——字体文件需要跨域头，国内镜像不提供
+- 字体留在 jsDelivr——字体文件需要跨域头，国内镜像不提供。两套可变字体（宋体 + 黑体）都是按需分片加载的，首屏只取用到的子集
 - 唱片封面用懒加载，页面稳定后再补下载，不占首屏带宽
 
 目前唯一还偏慢的是首页 HTML 本身（仍然来自 GitHub Pages，国内直连首次打开约 2–6 秒）。把整站搬到国内对象存储或 Cloudflare Pages 可以再进一步，但需要另外的账号，且换域名后浏览器里已有的日记需要通过「导出 / 导入备份」迁移。
@@ -182,7 +198,8 @@ GitHub Pages 有缓存，下拉刷新或强刷一次。
 
 ## 更新记录
 
-- **2026-09-19** 正文排版升级：字号 / 字重下拉选择器，改用真正的思源宋体可变字重
+- **2026-09-25** 视觉系统重构：建立设计令牌层并重做四个视图的布局与层级；内容卡片改实色、玻璃只留导航层；正文栏宽 900→660px、行高 2.1→1.8；引入思源黑体专用于界面；修复雪花被壁纸遮住的问题；重做打字反馈（每次击键的墨点 + 保存时的冰晶）；补齐图片灯箱的键盘与 Esc 关闭。规格见 [`DESIGN.md`](DESIGN.md)
+- **2026-09-19** 正文排版升级：字号 / 字重下拉选择器，改用真正的思源宋体可变字重。**注意**：此版本的截图已被上面这次重构取代
 - **2026-09-16** 移动端重构：顶栏重排、触屏交互、垃圾桶壁纸
 
 ## 许可证
@@ -193,7 +210,7 @@ GitHub Pages 有缓存，下拉刷新或强刷一次。
 
 - 名字与气质来自《WHITE ALBUM 2》，音乐版权归 AQUAPLUS 所有，本项目是非商业的个人练习
 - 雨声用的是网易云音乐上的雨声音源（国内可直连），连不上时回落到 [Rainy Mood](https://rainymood.com/)
-- 字体为思源宋体（SIL Open Font License 1.1）；图表 [ECharts](https://echarts.apache.org/)（Apache-2.0）、长图导出 [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro)（MIT）
+- 字体为思源宋体（正文与标题）与思源黑体（界面），均为 SIL Open Font License 1.1；图表 [ECharts](https://echarts.apache.org/)（Apache-2.0）、长图导出 [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro)（MIT）
 - 壁纸与封面图片来自网络，版权归原作者所有，仅供个人学习与欣赏，请勿商用
 - 反馈与建议：hilko@qq.com
 
@@ -205,7 +222,7 @@ GitHub Pages 有缓存，下拉刷新或强刷一次。
 
 White Album is a diary that runs entirely in your browser. The whole app is a single `index.html`: nothing to install, no build step, no command line — just open the file. There is no server and no account, and everything you write stays on your own machine by default.
 
-Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*: a serif Chinese typeface, falling snow, wallpapers and background music. It is not meant to be a productivity tool, but a quiet corner — you can take your time today, and once the day is over, the page is sealed and only readable.
+Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*, built on the design language of a macOS desktop app: the sidebar is the only place with a large glass surface, content cards are solid, and hierarchy comes from lightness and whitespace rather than stacked borders and shadows. The typeface split is deliberate — **you write in a serif; the interface talks to you in a sans**. Falling snow, wallpapers and background music carry the atmosphere. It is not meant to be a productivity tool, but a quiet corner — you can take your time today, and once the day is over, the page is sealed and only readable.
 
 ## Features
 
@@ -227,6 +244,8 @@ Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*: a serif Chin
 - **Font size**, 7 steps (12 / 14 / 16 / 18 / 20 / 24 / 28 px)
 - **Font weight**, 7 steps (200 – 900)
 - Writing and reading views share one setting, remembered locally. The typeface is a **variable-weight Noto Serif SC**, so every weight is a real weight rather than a synthetic bold.
+- The prose column is about 660px wide (roughly 40 Chinese characters per line) with a 1.8 line height — the comfortable measure for Chinese is 30–40 characters, so the air belongs beside the text, not between the lines
+- UI elements (navigation, buttons, tags, tables) use **Noto Sans SC** with a 12px floor; Chinese text is never letter-spaced (tracking is reserved for Latin eyebrows and numerals)
 
 ### Archive
 
@@ -260,7 +279,9 @@ Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*: a serif Chin
 
 - **Background audio** — *After All〜綴る想い〜 (Inst.)* from the WHITE ALBUM 2 soundtrack, or rain, with a volume slider. On touch devices, tapping the disc opens the panel first, then plays / pauses.
 - **Wallpapers that follow the view** — the writing view alternates between two by date, the archive uses a quiet town, statistics uses a night sky, and the trash has its own
+- **A visible wallpaper without losing the text** — scrim strength, wallpaper opacity and card opacity are tuned as one parameter set: the wallpaper recedes, the cards stay solid, rather than washing the whole screen out
 - **Snow and drifting light** — drawn on a canvas, re-seeded on resize, paused while the tab is hidden, and skipped entirely under `prefers-reduced-motion`
+- **Typing feedback** — every keystroke blooms a small ice-blue ink dot at the caret (capped at 6 concurrent); pressing “Save today” scatters five snowflakes. The same elements, moved from constant decoration to a one-off ritual moment.
 
 ## Getting started
 
@@ -282,22 +303,34 @@ Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*: a serif Chin
 | Layer | Choice |
 | --- | --- |
 | UI | Vanilla HTML / CSS / JavaScript — no framework, no build |
-| Typography | Noto Serif SC, variable weight (Fontsource CDN) |
+| Typography | Noto Serif SC (prose and titles) + Noto Sans SC (UI), both variable weight (Fontsource CDN) |
 | Charts | [ECharts](https://echarts.apache.org/) 5.5.1 |
 | Image export | [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) 2.4.3 |
 | Storage | localStorage · IndexedDB · File System Access API |
 | Hosting | GitHub Pages |
+
+## Design system
+
+The interface is not eyeballed — it follows a written spec, kept in [`DESIGN.md`](DESIGN.md):
+
+- **Tokens first** — every colour, type size, radius, spacing step and duration is a semantic token (`--surface` / `--text-muted` / `--accent` / `--fs-1…11` / `--r-*` / `--z-*`), and components only reference tokens. The dark theme remaps the same tokens instead of restating every rule.
+- **Elevation** — z-index is a fixed ruler (content 0 / chrome 100 / overlays 300 / toast 400) rather than per-component magic numbers.
+- **Material** — glass is reserved for the navigation layer (sidebar, toast, modals); content cards are solid, so body text never sits on something translucent.
+- **Legibility** — functional and secondary text are held to WCAG AA (4.5:1); the worst measured value across the four views is above 5.0:1.
+- **Motion** — curves and springs follow Apple's set (critically damped by default), durations come in four steps (100 / 150 / 200 / 300ms), and `prefers-reduced-motion`, `prefers-reduced-transparency` and `prefers-contrast` are all handled.
 
 ## Project layout
 
 ```
 white-album-diary/
 ├── index.html              the entire app: HTML + CSS + JS
+├── DESIGN.md               the design system spec (tokens, components, do's and don'ts)
 ├── wallpaper-*.jpg         wallpapers (day / CG / town / night / trash)
 ├── wallpaper-*.webp        the WebP versions actually loaded by the page
 ├── cover-introductory.jpg  album cover for the background music
 ├── cover-rain.svg          album cover for the rain sound
 ├── docs/                   screenshots used by this README
+│   └── agents/             repo conventions for AI agents
 └── README.md
 ```
 
@@ -342,6 +375,6 @@ Released under the [MIT License](LICENSE) — free to use, modify and distribute
 
 - Name and mood inspired by *WHITE ALBUM 2*; the music belongs to AQUAPLUS. This is a non-commercial personal practice project.
 - Rain: a track hosted on NetEase Cloud Music (reachable from mainland China), falling back to [Rainy Mood](https://rainymood.com/)
-- Typeface: Noto Serif SC (SIL Open Font License 1.1); charts by [ECharts](https://echarts.apache.org/) (Apache-2.0); long-image export by [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) (MIT)
+- Typefaces: Noto Serif SC (prose and titles) and Noto Sans SC (UI), both SIL Open Font License 1.1; charts by [ECharts](https://echarts.apache.org/) (Apache-2.0); long-image export by [html2canvas-pro](https://github.com/yorickshan/html2canvas-pro) (MIT)
 - Wallpaper and cover images come from the internet and remain the property of their original authors; they are included for personal, non-commercial use only
 - Feedback and suggestions: hilko@qq.com
