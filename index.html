@@ -30,7 +30,7 @@
 })();
 </script>
 <style>
-/* build:154306-63983 */
+/* build:155009-64424 */
 /* ==========================================================================
    白色相簿 · 样式表
    骨架 = macOS 桌面应用（8pt 网格 / 同心圆角 / 材质只属导航层）
@@ -1010,6 +1010,14 @@ body.focus-mode .diary-card::after{display:none}
   color:var(--text-strong);
 }
 .heat-panel .csub{margin-top:4px;font-size:var(--fs-2);color:var(--text-muted)}
+/* 热力网格是 width:max-content（24 周约 476px），窄屏下塞不进卡片。.heat-main 是
+   .heat-panel 的 grid item，min-width:auto 会自动取内容的最小尺寸；而 .heat-wrap 只是
+   个普通块（不是 flex/grid item），拿不到「滚动容器 ⇒ 自动最小尺寸为 0」那条豁免，
+   于是这 476px 一路上传，把整个布局视口顶宽——390 的手机上 Chrome 会把整页缩小到 77%
+   来「塞下」，.heat-wrap 的 overflow-x:auto 因此彻底失效（格子溢出卡片、铺到壁纸上去）。
+   给 grid item 显式 min-width:0 把自动最小尺寸归零，横向滚动才真的发生在 .heat-wrap 里。
+   窄屏（.heat-panel 是单列 1fr）和宽屏（第一列 auto）都需要它。 */
+.heat-main{min-width:0}
 .heat-wrap{overflow-x:auto;padding-bottom:6px;scrollbar-width:thin}
 .heat-grid{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;gap:4px;width:max-content}
 .heat-cell{
