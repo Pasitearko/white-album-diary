@@ -1801,11 +1801,11 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
       </button>
       <button id="exportBtn" data-short="导出">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 3v12m0 0l-4.5-4.5M12 15l4.5-4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-        <span class="lbl">导出日记备份</span>
+        <span class="lbl">导出备份</span>
       </button>
       <button id="importBtn" data-short="导入">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-        <span class="lbl">导入日记备份</span>
+        <span class="lbl">导入备份</span>
       </button>
       <button id="themeBtn" data-short="主题">
         <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -2159,7 +2159,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 <!-- 存储位置弹窗 -->
 <div class="modal-mask" id="storageModal" style="display:none">
   <div class="modal-box" onclick="event.stopPropagation()">
-    <h4>日记存储与备份</h4>
+    <h4>存储与备份</h4>
     <div class="storage-status" id="storageStatus" aria-live="polite"></div>
     <p class="modal-desc" id="storageDesc"></p>
     <div class="modal-actions modal-actions-wrap">
@@ -4768,7 +4768,7 @@ function describeStorage(){
   var d = document.getElementById('storageDesc'); if(!d) return;
   renderStorageStatus();
   if(!FS_SUPPORTED){
-    d.innerHTML = '当前浏览器不支持直接写入本地文件夹（需要 Edge 或 Chrome）。<br>你仍然可以用侧栏的「导出日记备份」把数据手动存到磁盘。';
+    d.innerHTML = '当前浏览器不支持直接写入本地文件夹（需要 Edge 或 Chrome）。<br>你仍然可以用侧栏的「导出备份」把数据手动存到磁盘。';
     return;
   }
   if(dirHandle){
