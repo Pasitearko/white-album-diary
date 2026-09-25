@@ -30,7 +30,7 @@
 })();
 </script>
 <style>
-/* build:144801-61846 */
+/* build:150919-63073 */
 /* ==========================================================================
    白色相簿 · 样式表
    骨架 = macOS 桌面应用（8pt 网格 / 同心圆角 / 材质只属导航层）
@@ -478,12 +478,16 @@ body[data-theme="dark"] .diary-card.typing::after{opacity:.5}
   font-size:var(--fs-2);white-space:nowrap;
   transition:background-color var(--dur-micro) var(--ease-out),
              border-color var(--dur-micro) var(--ease-out),
-             color var(--dur-micro) var(--ease-out);
+             color var(--dur-micro) var(--ease-out),
+             transform var(--dur-press) var(--ease-out);
 }
 @media (hover:hover) and (pointer:fine){
   .tb-chip:hover{border-color:var(--accent);color:var(--accent)}
 }
 .tb-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:500}
+/* 按下反馈：同排的 .tool-btn 有，chip 原先没有，点下去毫无回执。
+   用 .98 而不是主按钮的 .97——它更小、按得更频繁，位移读起来要更轻。 */
+.tb-chip:active{transform:scale(.98)}
 .tb-new{border-style:dashed;color:var(--accent);border-color:var(--n300)}
 .tb-new:hover{border-color:var(--accent);background:var(--accent-soft)}
 .tb-hint{font-size:var(--fs-1);color:var(--text-muted)}
@@ -569,7 +573,8 @@ body[data-theme="dark"] .diary-card.typing::after{opacity:.5}
   color:var(--text-muted);font-size:var(--fs-2);white-space:nowrap;
   transition:background-color var(--dur-micro) var(--ease-out),
              border-color var(--dur-micro) var(--ease-out),
-             color var(--dur-micro) var(--ease-out);
+             color var(--dur-micro) var(--ease-out),
+             transform var(--dur-press) var(--ease-out);
 }
 /* 天气图标由 JS 生成，标记里没有 width/height 属性，必须在这里给死尺寸——
    否则浏览器会按 viewBox 比值自行推算，晴/阴/雨/雪 变成 18px、多云变成 31px，
@@ -584,6 +589,8 @@ body[data-theme="dark"] .diary-card.typing::after{opacity:.5}
   .tag:hover{border-color:var(--accent);color:var(--accent)}
 }
 .tag.sel{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:500}
+/* 按下反馈：与 .tb-chip 同理，天气/心境胶囊原先也是点下去没有回执。 */
+.tag:active{transform:scale(.98)}
 
 /* ---------- 正文 ---------- */
 .diary-body{
@@ -1290,6 +1297,24 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   background:hsl(212 34% 10% / .46);
   -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
 }
+/* 出场：.modal-mask 靠 display 切换，而 display 不可过渡，所以之前是「淡入 + 硬消失」。
+   JS 关闭时先加 .out 类（保持 display:flex），等动画跑完再置 display:none——见
+   closeModal()。这里只动 opacity，不动 backdrop-filter：把 6px 模糊当动画值会让整个
+   视口逐帧重新做一次模糊合成。opacity 变化本身就把模糊一起淡掉了，视觉等价。 */
+.modal-mask.out{
+  animation:maskOut var(--dur-micro) var(--ease-exit) both;
+}
+/* 时间轴：popOut 延迟 --dur-micro 起跑，所以整段 = 150ms + 200ms = 350ms，落在
+   审查技能给的弹层出场区间内。用 !important 压掉 .modal-box 基类上那条 popIn——
+   入场动画是 fill:both，停留在终态，加了 .out 也不会自动松手。
+   fill 用 forwards（不是 both）：backwards 会让弹窗在 150ms 延迟里先闪回 popIn 的
+   起始透明度，看得到一下闪烁。 */
+.modal-box.out{
+  transform-origin:center;
+  animation:popOut var(--dur-med) var(--ease-exit) var(--dur-micro) forwards!important;
+}
+@keyframes maskOut{to{opacity:0}}
+@keyframes popOut{to{opacity:0;transform:scale(.96)}}
 .modal-box{
   width:380px;max-width:100%;
   padding:26px 28px;
@@ -1297,6 +1322,9 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   border:1px solid var(--border);
   border-radius:var(--r-lg);
   box-shadow:var(--e4);
+  /* 显式锚在中心：.modal-box 比舞台窄，默认的 50% 50% 本来就是中心，但 popIn/popOut
+     都靠 scale，写死一次比依赖浏览器默认值稳。 */
+  transform-origin:center;
   animation:popIn var(--dur-med) var(--ease-out) both;
 }
 @keyframes popIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
@@ -2059,7 +2087,66 @@ function toast(msg){
   t.textContent=msg;t.classList.add('show');
   clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show');},2200);
 }
-/* 通用确认弹窗：清空 / 删除 / 清空垃圾桶都用它 */
+/* ---------- 弹窗开关（出场动画需要一个「延迟真正隐藏」的中间态，所以统一走这里） ----------
+   （通用确认弹窗：清空 / 删除 / 清空垃圾桶都用 askConfirm）
+   背景：.modal-mask 一直靠 display:none ↔ flex 切换，而 display 不可过渡，所以出场是硬消失。
+   现在关闭时先加 .closing/.out 让 CSS 把 opacity/scale 动回去，动画跑完再置 display:none。
+   三处弹窗（linkModal / storageModal / confirmModal）都走这两个函数，避免各写一份时序。
+
+   为什么需要 .closing 这个守卫类（实测踩过的坑，别删）：因为 .modal-box 上的 popIn 是
+   fill:both，会一直持有终态。给它加 .out 的那一次样式重算（computed animation-name 从
+   popIn 变成 popOut）会让已经跑完的 popIn 立刻派发一个 animationend。如果 modalFadeEnd
+   不加守卫地再叫一次 closeModal，它就会把刚排好的 700ms 兜底定时器清掉重排——实测表现为
+   「关到 opacity:0 已经看不见了，display 却还要再等一整轮 700ms 才变 none」。
+   守卫之后 modalFadeEnd 走 closeModalNow，收尾在出场动画真正结束的那一刻发生。
+
+   700ms 是兜底上限（.modal-box 用 !important 压掉基类 popIn，所以动画结束时 computed 仍是
+   popOut）。prefers-reduced-motion 下全局把 animation-duration 压到 .01ms，动画立刻结束、
+   立刻隐藏，不会留一个「关不掉」的遮罩。 */
+function modalFadeEnd(e){
+  if(!e.target || !e.target.classList || !e.target.classList.contains('modal-box')) return;
+  var m=e.target.parentNode;
+  if(!m) return;
+  if(m.classList.contains('closing')) closeModalNow(m);
+}
+function openModal(m){
+  if(!m)return;
+  clearTimeout(m._closeT);
+  m.classList.remove('out');
+  m.classList.remove('closing');
+  var box=m.querySelector('.modal-box');
+  /* .modal-box.out 也要一并摘掉：否则下一次打开时 box 还带着出场动画（fill:forwards
+     停在 opacity:0），弹窗看起来根本没开。 */
+  if(box) box.classList.remove('out');
+  /* 读一次 offsetWidth 强制提交回流：如果上一次出场动画还没收尾就重新打开，
+     popIn 的 fill:both 仍占着终态，而「同一帧里移除类 + 设置 transform」起不了过渡
+     （本页指示器踩过同一个坑），必须先把新状态渲染出去。 */
+  void m.offsetWidth;
+  m.style.display='flex';
+}
+function closeModal(m){
+  if(!m || m.style.display==='none') return;
+  if(m.classList.contains('closing')) return;
+  var box=m.querySelector('.modal-box');
+  /* 遮罩与盒子各自要 .out：maskOut 在 .modal-mask 上，popOut 在 .modal-box 上（见 css-4.css）。
+     只给遮罩加类是无效的——盒子会继续停在 popIn 的终态。 */
+  m.classList.add('closing');
+  m.classList.add('out');
+  if(box) box.classList.add('out');
+  clearTimeout(m._closeT);
+  if(box) box.addEventListener('animationend', modalFadeEnd);
+  m._closeT=setTimeout(function(){closeModalNow(m);},700);
+}
+function closeModalNow(m){
+  if(!m) return;
+  var box=m.querySelector('.modal-box');
+  m.style.display='none';
+  m.classList.remove('out');
+  m.classList.remove('closing');
+  if(box) box.classList.remove('out');
+  clearTimeout(m._closeT);
+  if(box) box.removeEventListener('animationend', modalFadeEnd);
+}
 function askConfirm(title,desc,okLabel,onOk,danger){
   var m=document.getElementById('confirmModal');
   document.getElementById('confirmTitle').textContent=title;
@@ -2067,11 +2154,12 @@ function askConfirm(title,desc,okLabel,onOk,danger){
   var ok=document.getElementById('confirmOk');
   ok.textContent=okLabel||'确定';
   ok.classList.toggle('modal-danger',!!danger);
-  function close(){m.style.display='none';ok.onclick=null;}
+  /* 等出场动画收尾之后才置 display:none，动画中途重复触发也安全 */
+  function close(){ok.onclick=null;closeModal(m);}
   ok.onclick=function(){close();try{if(onOk)onOk();}catch(e){}};
   document.getElementById('confirmCancel').onclick=close;
   m.onclick=close;
-  m.style.display='flex';
+  openModal(m);
 }
 
 /* ================= 飘雪背景 ================= */
@@ -3169,10 +3257,10 @@ var linkModal=document.getElementById('linkModal');
 function openLinkModal(){
   document.getElementById('linkText').value='';
   document.getElementById('linkUrl').value='';
-  linkModal.style.display='flex';
+  openModal(linkModal);
   setTimeout(function(){document.getElementById('linkUrl').focus();},60);
 }
-function closeLinkModal(){linkModal.style.display='none';}
+function closeLinkModal(){closeModal(linkModal);}
 document.getElementById('btnLink').addEventListener('click',openLinkModal);
 document.getElementById('linkCancel').addEventListener('click',closeLinkModal);
 linkModal.addEventListener('click',closeLinkModal);
@@ -4270,12 +4358,12 @@ function describeStorage(){
 }
 document.getElementById('storageBtn').addEventListener('click',function(){
   describeStorage();
-  document.getElementById('storageModal').style.display = 'flex';
+  openModal(document.getElementById('storageModal'));
 });
 document.getElementById('storageCancel').addEventListener('click',function(){
-  document.getElementById('storageModal').style.display = 'none';
+  closeModal(document.getElementById('storageModal'));
 });
-document.getElementById('storageModal').addEventListener('click',function(){ this.style.display='none'; });
+document.getElementById('storageModal').addEventListener('click',function(){ closeModal(this); });
 document.getElementById('storagePick').addEventListener('click',async function(){
   if(!FS_SUPPORTED){ toast('当前浏览器不支持选择文件夹'); return; }
   try{
