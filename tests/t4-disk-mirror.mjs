@@ -250,6 +250,8 @@ test('只有元数据没有字节的图，不许写出空文件', async () => {
   });
   assert.deepEqual(dir._list(), ['root/品味库/index.json', 'root/品味库/品味库.md']);
   assert.equal(res.mirrored['images/taste_a-1.jpg'], undefined);
+  // 上报给界面层：这条的图在磁盘上写不出来，但索引里照样有它
+  assert.deepEqual(res.missingBytes, ['taste_a'], '没字节的条目要如实上报，界面靠它标「待落盘」');
 });
 
 test('不是 data: URL 的字节地址一律不写盘（防的是「文件在、图全坏」）', async () => {
@@ -274,6 +276,7 @@ test('不是 data: URL 的字节地址一律不写盘（防的是「文件在、
   assert.equal(calls, 0, '坏字节地址不该送去解码');
   assert.deepEqual(dir._list(), ['root/品味库/index.json', 'root/品味库/品味库.md']);
   assert.equal(Object.keys(res.mirrored).some((p) => p.startsWith('images/')), false);
+  assert.deepEqual(res.missingBytes, ['taste_a'], '坏字节地址也算「这条的字节不在本机」');
 });
 
 test('条目还在、只是字节读不到：磁盘上那份是最后的副本，绝不当残留删掉', async () => {
@@ -289,6 +292,24 @@ test('条目还在、只是字节读不到：磁盘上那份是最后的副本�
   });
   assert.deepEqual(res.removed, [], '「读不到字节」不等于「用户删了图」，不能删磁盘上那份');
   assert.ok(dir._list().includes('root/品味库/images/taste_a-1.jpg'), '磁盘上那份必须留着');
+  assert.deepEqual(res.missingBytes, ['taste_a'], '磁盘上有旧副本也算缺字节：真相源里还是没有');
+});
+
+test('字节写成功的条目不上报，写盘失败的条目要上报', async () => {
+  const m = freshModules();
+  const dir = fakeDir();
+  const ok = makeItem({ id: 'taste_ok', images: [{ id: 'i1', name: 'a.jpg', addedAt: 11, dataUrl: 'data:image/jpeg;base64,AAA' }] });
+  const first = await m.mirrorTasteLibrary({ dir, items: [ok], lastMirrored: {}, blobFromDataUrl: async () => pngBytes(2) });
+  assert.deepEqual(first.missingBytes, [], '真写进去了就不该上报');
+
+  // 写盘那一手炸了：这条也得算缺字节，否则界面会把它标成「已落盘」
+  const dir2 = fakeDir();
+  const boom = makeItem({ id: 'taste_boom', images: [{ id: 'i1', name: 'a.jpg', addedAt: 11, dataUrl: 'data:image/jpeg;base64,AAA' }] });
+  const second = await m.mirrorTasteLibrary({
+    dir: dir2, items: [boom], lastMirrored: {},
+    blobFromDataUrl: async () => { throw new Error('解码失败'); },
+  });
+  assert.deepEqual(second.missingBytes, ['taste_boom'], '单张图失败也要如实上报');
 });
 
 test('汇总 md 只给真有字节的图写链接（写了就是死链）', () => {

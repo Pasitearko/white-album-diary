@@ -1238,6 +1238,25 @@ body[data-theme="dark"] .heat-cell.l4{background:var(--ice200);border-color:var(
    也就不会出现「类没跟上、视觉与语义打架」 */
 .taste-tagbar .tag[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:500}
 
+/* 待落盘那一条（T9）：「N 条还没有写进文件夹 · 点这里落盘」。
+   用的是站内既有的 .btn-ghost（空态里那两颗按钮同款），只是单独占一行。
+   [hidden] 那条必须自己写：这个元素默认是 block，将来谁给它加一句 display，
+   浏览器给 [hidden] 的 `display:none` 就会被盖掉、隐藏时仍占一行高度。
+   （.taste-tagbar 那边用的是 :empty，踩的是同一类坑。） */
+.taste-pending{margin:0 0 14px}
+.taste-pending[hidden]{display:none}
+/* 卡片角标：这张卡还没写进文件夹。它跟详情里那个计数药丸、lightbox 的关按钮
+   一样，压在**任意一张照片**上，所以颜色只能写死（见 DESIGN.md「明确豁免」，
+   三处要改一起改）；位置在左上角，右上角那枚是编辑按钮。
+   字号走 var(--fs-1)（12px）—— 站规是中文小字不得低于 12px，11px 的汉字会粘连；
+   高度取 8pt 阶梯上的 24px，跟旁边那个计数药丸同一个观感。 */
+.taste-pending-badge{
+  position:absolute;top:8px;left:8px;z-index:2;
+  height:24px;padding:0 10px;border-radius:var(--r-full);
+  background:hsl(212 34% 10% / .62);color:hsl(208 30% 96%);
+  font-size:var(--fs-1);line-height:24px;white-space:nowrap;
+}
+
 /* 下限 310px：卡片窄到 280 时，主标题与副标题挤在一行里谁也放不下
    （「Halftone Sails Collage」当场被截成省略号）。310 让这一栏稳定落在 3 列，
    卡片宽度与站点主人给的那张参考图接近，也是「副标题先让、主标题完整」能成立的宽度。 */
@@ -2433,6 +2452,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
         </div>
         <div class="taste-tagbar" id="tasteTagBar" role="group" aria-label="按标签筛选"></div>
       </div>
+      <!-- 待落盘那一条（T9）：导入进来、还没写进文件夹的条目在这儿汇总一句，
+           点它就是「现在补写」。条数存在 localStorage 里，刷新后照样在。
+           它故意放在 #tasteBody 外面 —— 网格每次重画都整块换掉，挂在里面会跟着没。 -->
+      <div class="taste-pending" id="tastePendingBar" hidden></div>
       <div class="taste-pane" id="tasteBody"></div>
     </section>
 
@@ -3364,8 +3387,16 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     var last = (opt.lastMirrored && typeof opt.lastMirrored === 'object') ? opt.lastMirrored : {};
     var decode = opt.blobFromDataUrl;
 
-    var mirrored = {};   // 这一轮之后，磁盘上「该有」的文件
-    var removed = [];    // 这一轮真的删掉的（删失败的不算，留给下一轮再试）
+    var mirrored = {};      // 这一轮之后，磁盘上「该有」的文件
+    var removed = [];       // 这一轮真的删掉的（删失败的不算，留给下一轮再试）
+    /* 这一轮「条目的图还挂着、但本机没有字节」的条目 id。`keep` 只说磁盘上该占着
+       那个槽位，不说字节在不在 —— 真的没有字节时磁盘上那份就是唯一的副本，界面
+       要一直把这条标成「待落盘」，直到字节回来或者用户删掉整条。文件名怎么拼、
+       哪张图没写成，只有这一层知道，所以由这里报给调用方，不让界面层去重算约定。 */
+    var missingBytes = [];
+    function noteMissingBytes(id) {
+      if (missingBytes.indexOf(id) < 0) missingBytes.push(id);
+    }
 
     async function writeAt(fileDir, name, data) {
       var fh = await fileDir.getFileHandle(name, { create: true });
@@ -3404,7 +3435,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
         var name = tasteImageFilename(items[i].id, k);
         var path = IMAGES_DIR + '/' + name;
         keep[path] = true;
-        if (!im || typeof im !== 'object' || !isDataUrl(im.dataUrl)) continue; // 没有字节就跳过，别写空文件
+        if (!im || typeof im !== 'object' || !isDataUrl(im.dataUrl)) {
+          noteMissingBytes(items[i].id); // 没有字节就跳过，别写空文件（但要如实上报）
+          continue;
+        }
         var stamp = typeof im.addedAt === 'number' ? im.addedAt : 0;
         var token = path + '@' + stamp + '#' + im.dataUrl.length;
         if (last[path] === token) { mirrored[path] = last[path]; continue; } // 没变就不重复写盘
@@ -3414,6 +3448,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
           mirrored[path] = token;
         } catch (err) {
           // 单张图失败不拖垮整轮：下一轮还会再试（记忆里没有它）
+          noteMissingBytes(items[i].id);
         }
       }
     }
@@ -3431,7 +3466,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
       }
     }
 
-    return { mirrored: mirrored, removed: removed };
+    return { mirrored: mirrored, removed: removed, missingBytes: missingBytes };
   }
 
   /* ——— 图片字节的真相源（IndexedDB） ———
@@ -5579,17 +5614,110 @@ document.getElementById('heatGrid').addEventListener('click',function(e){
   toast(cell.title);
 });
 
-/* ================= 导出备份 ================= */
-document.getElementById('exportBtn').addEventListener('click',function(){
-  if(!Object.keys(DB).length){toast('还没有日记可以备份');return;}
-  var blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+/* ================= 导出备份（T9） =================
+   一个 JSON 装下全部东西：日记 + 品味库，图片以 base64 内联在同一个文件里。
+   不加 zip、也不给「是否包含图片」的开关 —— 少一个开关就少一种「备份里到底有没有图」
+   的歧义。
+   顺序是刻意的：**先估算大小并报出来，再决定要不要往下走**。真正精确的字节数只有把
+   所有图片编码成 base64 之后才知道，而那一步恰恰会让主线程僵住 —— 所以估算走
+   IndexedDB 里的 blob.size（读大小、不编码），于是「文件较大」这句提醒出现在卡顿
+   **之前**，用户还来得及取消。 */
+var BACKUP_BIG_BYTES=30*1024*1024;
+
+/* 导出与导入都会先要模块：没加载好是同一个故障，文案只留一句。 */
+function backupModule(name){
+  var mods=window.__tasteModules||{};
+  if(typeof mods[name]==='function')return mods;
+  toast('备份功能没加载好，刷新页面再试');
+  return null;
+}
+function mbOf(bytes){ return (bytes/1048576).toFixed(1); }
+/* 只要清单（元数据 —— T3 存的时候就剥掉了图片字节），不碰 IndexedDB。 */
+function backupTasteList(){
+  return tasteRepo().then(function(repo){ return repo.list(); });
+}
+function estimateBackupBytes(diary,items){
+  /* 够用就行的估算：日记与元数据按 UTF-8 真实长度算，图片按 blob.size × 4/3
+     （base64 的膨胀）再加每张 data URL 前缀那几十字节的零头。 */
+  var bytes=0;
+  try{
+    bytes=new Blob([JSON.stringify(diary||{})]).size+new Blob([JSON.stringify(items||[])]).size;
+  }catch(e){ bytes=0; }
+  return tasteImages().then(function(images){
+    var jobs=[];
+    (items||[]).forEach(function(it){
+      (it.images||[]).forEach(function(im){
+        jobs.push(images.get(it.id,im.imageId||im.id).catch(function(){ return null; }));
+      });
+    });
+    return Promise.all(jobs);
+  }).then(function(blobs){
+    var img=0;
+    blobs.forEach(function(b){ if(b&&b.size)img+=b.size; });
+    return bytes+(img?Math.ceil(img*4/3)+blobs.length*64:0);
+  }).catch(function(){ return bytes; });   /* 读不到字节也别拦着导出，报个下限 */
+}
+function hydrateBackupItems(list){
+  /* 图片字节的真相源是 IndexedDB，备份里要的是 base64：这里水合一遍。
+     读字节失败（浏览器数据被清过、或 IndexedDB 用不了）不能把整条条目丢掉 ——
+     元数据照样进备份，只在提示里说明「图片字节这次没读出来」。 */
+  var mods=window.__tasteModules||{};
+  if(!list.length||typeof mods.hydrateImageDataUrls!=='function'){
+    return Promise.resolve({items:list,missing:0,imagesUnreadable:false});
+  }
+  return tasteImages().then(function(images){
+    return mods.hydrateImageDataUrls(list,{images:images,makeDataUrl:blobToDataUrl});
+  }).then(function(res){
+    return {items:res.items||list,missing:(res.missing||[]).length,imagesUnreadable:false};
+  }).catch(function(){ return {items:list,missing:0,imagesUnreadable:true}; });
+}
+function backupNote(taste){
+  if(taste.imagesUnreadable)return '（图片字节这次没读出来）';
+  if(taste.missing)return '（有 '+taste.missing+' 张图没读到字节）';
+  return '';
+}
+function downloadBackup(text,summary){
+  var blob=new Blob([text],{type:'application/json'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='白色相簿备份-'+todayKey()+'.json';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
   recordBackupExport();
-  toast('备份文件已下载');
+  toast('备份文件已下载：'+summary);
+}
+document.getElementById('exportBtn').addEventListener('click',async function(){
+  var mods=backupModule('buildBackup');
+  if(!mods)return;
+  var diaryCount=Object.keys(DB).length,list;
+  try{ list=await backupTasteList(); }
+  catch(err){
+    /* 条目元数据就在 localStorage 里，正常不会读不出来；真读不出来就先别导 ——
+       导一份「少了整个品味库」的备份，比不导危险得多。 */
+    toast('品味库这次读不出来，先别导出，刷新页面再试');
+    return;
+  }
+  if(!diaryCount&&!list.length){toast('还没有东西可以备份');return;}
+  var estimate=await estimateBackupBytes(DB,list);
+  var head=diaryCount+' 篇日记、'+list.length+' 条收藏，约 '+mbOf(estimate)+' MB';
+  /* 导出前先报一次（票 AC7）：这份备份装了什么、大概多重，动手之前就知道。 */
+  toast('这次备份有 '+head+'，正在打包…');
+  var run=async function(){
+    var taste=await hydrateBackupItems(list);
+    var text;
+    try{ text=mods.buildBackup(DB,{items:taste.items}); }
+    catch(err){ toast('备份没能生成，稍后再试'); return; }
+    var bytes=new Blob([text]).size;
+    downloadBackup(text,diaryCount+' 篇日记、'+list.length+' 条收藏，约 '+mbOf(bytes)+' MB'+backupNote(taste));
+  };
+  if(estimate>BACKUP_BIG_BYTES){
+    /* 这一档不能只靠 toast：几十 MB 的 JSON 会让主线程僵好几秒，用户得知道
+       「点了之后页面会僵一下」，而不是以为坏了。门必须设在编码**之前** ——
+       等文件生成完再问就晚了，卡顿已经发生过了。 */
+    askConfirm('备份文件较大','包含 '+head+'。文件较大，浏览器可能卡顿数秒，期间别关页面。','继续导出',run);
+    return;
+  }
+  await run();
 });
 
 /* ================= 主题切换 ================= */
@@ -5626,7 +5754,112 @@ document.getElementById('themeBtn').addEventListener('click',function(){
   setTheme(saved==='dark'?'dark':'light',false);
 })();
 
-/* ================= 导入备份 ================= */
+/* ================= 导入备份（T9） =================
+   吃两种形状：新格式（{version,diary,taste}）与改造前那种扁平纯日记备份。
+   识别规则内聚在 T8 的 parseBackup 里（`kind` 告诉我们是从哪种形状认出来的），这里
+   只管按它给的清单落库，并把「从哪儿认出来的」翻成一句人话。
+   **不要求先连文件夹**（spec L127 那条刻意的反转）：品味库条目先落成「待落盘」——
+   元数据进 localStorage、图片字节进 IndexedDB，卡片带角标，搜索筛选照常可用；
+   文件夹连上以后 syncFolder() 会补写一轮，界面上那条「N 条还没有写进文件夹」也能手动补。 */
+function tasteImageRefOf(im,index,itemId){
+  var src=im||{};
+  return {id:src.imageId||src.id||('timg_'+itemId+'_'+(index+1)),name:src.name||'',addedAt:src.addedAt||0};
+}
+async function importTasteEntry(item,images){
+  var repo=await tasteRepo();
+  if(await repo.get(item.id))return 'skipped';
+  /* 跟 T5 保存走同一条次序：先落元数据（图片列表先空着）、再把字节写进真相源、
+     最后把「这条有哪些图」写回元数据 —— 中途断了也不会留下「元数据说有图、
+     字节其实没有」的假象。 */
+  await repo.add({
+    id:item.id,type:item.type,title:item.title,subtitle:item.subtitle,url:item.url,
+    tags:item.tags,category:item.category,note:item.note,images:[],
+    createdAt:item.createdAt,updatedAt:item.updatedAt
+  });
+  var list=Array.isArray(item.images)?item.images:[],meta=[];
+  for(var i=0;i<list.length;i++){
+    var ref=tasteImageRefOf(list[i],i,item.id);
+    var dataUrl=list[i]&&list[i].dataUrl;
+    if(typeof dataUrl==='string'&&dataUrl.indexOf('data:')===0){
+      try{
+        var blob=await (await fetch(dataUrl)).blob();
+        if(await images.put(item.id,ref,blob))meta.push(ref);
+      }catch(e){ /* 这一张解不开就只当它没带字节，条目的其余部分照收 */ }
+    }else{
+      meta.push(ref); /* 备份里本来就没带字节：引用留着，磁盘那份或下次导入还能对上 */
+    }
+  }
+  if(meta.length)await repo.update(item.id,{images:meta});
+  return 'added';
+}
+async function importBackupText(text){
+  var mods=backupModule('parseBackup');
+  if(!mods)return;
+  var parsed;
+  try{ parsed=mods.parseBackup(text); }
+  catch(err){
+    /* 认不出来时说清「哪里认不出来」：parseBackup 抛的 message 已经是人话
+       （「这不是一个能认出来的备份文件：既没有 diary / taste 键，也不像旧版…」），
+       比笼统的「格式不正确」更可查。 */
+    toast((err&&err.message)||'备份文件格式不正确');
+    return;
+  }
+  var entries=parsed.entries||[];
+  if(!entries.length){toast('文件里没有可导入的内容');return;}
+  var d={added:0,skipped:0},t={added:0,skipped:0,failed:0},newTasteIds=[],i,en;
+  /* 先日记、后品味库两趟：日记写的是 localStorage，配额满就得整体中止，
+     不能把品味库灌到一半才发现日记进不去。 */
+  for(i=0;i<entries.length;i++){
+    en=entries[i];
+    if(en.dataset!=='diary')continue;
+    var k=en.key,e=en.value;
+    if(!e||typeof e!=='object')continue;
+    /* 空壳条目的判定与改造前逐字一致（免得一份手写的备份塞进一堆空日记）。 */
+    if(!e.content&&!(e.images&&e.images.length)&&!(e.tags&&e.tags.length))continue;
+    if(DB[k]){d.skipped++;continue;}
+    e.date=e.date||String(k).split('#')[0];
+    DB[k]=e;
+    DB[k].words=DB[k].words||countWords(e.content||'');
+    d.added++;
+  }
+  if(d.added){
+    try{ saveAll(DB); }
+    catch(err){ toast('存储空间不足，导入失败'); return; }
+  }
+  for(i=0;i<entries.length;i++){
+    en=entries[i];
+    if(en.dataset!=='taste')continue;
+    if(!en.value){t.failed++;continue;}
+    try{
+      var images=await tasteImages();
+      var r=await importTasteEntry(en.value,images);
+      if(r==='added'){t.added++;newTasteIds.push(en.value.id);}else{t.skipped++;}
+    }catch(err){ t.failed++; }
+  }
+  /* 「新增 0、跳过 0」不是一句能糊过去的完成话：一份只有日期键、内容全是空壳的
+     旧备份（或全是已经存在的条目）走完两趟就是这个数 —— 那说明**这个文件里没有
+     可导入的东西**，跟「导入成功了」是两回事。 */
+  if(!d.added&&!d.skipped&&!t.added&&!t.skipped&&!t.failed){
+    toast('文件里没有可导入的内容');
+    return;
+  }
+  if(newTasteIds.length){
+    /* 先记上「待落盘」，再尝试补写：这样即使补写失败（没连文件夹、权限没给回、
+       磁盘满），那句「N 条还没有写进文件夹 · 点这里落盘」也一定在。 */
+    markTastePending(newTasteIds);
+    if(dirHandle)await mirrorTaste();
+    await renderTasteSafe();
+  }
+  if(d.added){
+    if((location.hash||'').indexOf('browse')>=0)renderBrowse();
+    if((location.hash||'').indexOf('stats')>=0)renderStats();
+  }
+  var msg=(parsed.kind==='diary'?'旧版备份，已按日记导入：':'导入完成：')+'新增 '+d.added+' 篇日记、'+t.added+' 条收藏';
+  if(d.skipped+t.skipped)msg+='，跳过已存在 '+(d.skipped+t.skipped)+' 条';
+  if(t.failed)msg+='，'+t.failed+' 条没能读进来';
+  if(parsed.versionAhead)msg+='（这份备份来自更新的版本）';
+  toast(msg);
+}
 document.getElementById('importBtn').addEventListener('click',function(){
   document.getElementById('importFileInput').click();
 });
@@ -5635,30 +5868,13 @@ document.getElementById('importFileInput').addEventListener('change',function(){
   if(!file)return;
   var reader=new FileReader();
   reader.onload=function(e){
-    try{
-      var data=JSON.parse(e.target.result);
-      if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('bad');
-      var added=0,skipped=0;
-      Object.keys(data).forEach(function(k){
-        if(!/^\d{4}-\d{2}-\d{2}(#\d+)?$/.test(k))return;
-        var en=data[k];
-        if(!en||typeof en!=='object')return;
-        if(!en.content&&!(en.images&&en.images.length)&&!(en.tags&&en.tags.length))return;
-        if(DB[k]){skipped++;return;}
-        en.date=en.date||String(k).split('#')[0];
-        DB[k]=en;
-        DB[k].words=DB[k].words||countWords(en.content||'');
-        added++;
-      });
-      if(!added&&!skipped){toast('文件里没有可导入的日记');return;}
-      try{
-        saveAll(DB);
-        toast('导入完成：新增 '+added+' 篇'+(skipped?'，跳过已存在 '+skipped+' 篇':''));
-        if((location.hash||'').indexOf('browse')>=0)renderBrowse();
-        if((location.hash||'').indexOf('stats')>=0)renderStats();
-      }catch(err){toast('存储空间不足，导入失败');}
-    }catch(err){toast('备份文件格式不正确');}
+    var text=String(e.target.result||'');
+    importBackupText(text).catch(function(err){
+      if(window.__tasteTest)window.__tasteTest.lastImportError=String((err&&err.message)||err);
+      toast('导入没能完成，稍后再试');
+    });
   };
+  reader.onerror=function(){toast('这个文件读不出来');};
   reader.readAsText(file);
 });
 
@@ -5771,10 +5987,14 @@ function tasteCardHTML(item,no){
   /* 缩略图位有三种样子：有封面字节 → 真图；文本类 → 一段浅底色笔记预览（spec L155）；
      其余 → 图片占位符。笔记预览不带右上角那个「翻页」三角：它不是一张网页的预览。 */
   var thumb;
+  /* 待落盘的角标（T9）：这条还没写进文件夹。统一放左上角 ——
+     右上角那枚是「编辑」，两个角标挤在一起会互相盖住。 */
+  var pending=isTastePending(item.id)
+    ?'<span class="taste-pending-badge" title="还没写进文件夹">待落盘</span>':'';
   if(item.type==='note'){
-    thumb='<div class="taste-thumb taste-thumb-note"><p>'+esc(item.note||item.title||'')+'</p></div>';
+    thumb='<div class="taste-thumb taste-thumb-note">'+pending+'<p>'+esc(item.note||item.title||'')+'</p></div>';
   }else{
-    thumb='<div class="taste-thumb">'+
+    thumb='<div class="taste-thumb">'+pending+
       ((cover&&cover.dataUrl)
         ? '<img src="'+esc(cover.dataUrl)+'" alt="'+esc(item.title||'')+'">'
         : '<div class="taste-thumb-empty">'+
@@ -5992,22 +6212,55 @@ function paintTaste(items,numbers,opts){
   var body=document.getElementById('tasteBody');
   if(!body)return;
   var list=items||[],no=numbers||[],o=opts||{};
+  /* canCreate 为假＝现在不该给「添加一件收藏」这张虚线卡（没连文件夹，或仓库起不来）。
+     T9 之后网格在没有文件夹时也可能有内容（导入进来的待落盘条目），
+     所以「有没有卡」与「库是不是空」是两件事，得分开传。 */
+  var canCreate=o.canCreate!==false;
   if(!list.length){
     /* 两套空态必须长得不一样（票 AC7）：库里本来就空 → 「还没有收藏任何东西」，
        并把虚线卡摆出来；筛出来是空 → 「没有找到符合条件的收藏」再加一句怎么退回去。
        筛空时**不摆**虚线卡：那时的下一步是换个关键词，不是再收一件。 */
     body.innerHTML=o.filtered
       ?tasteEmptyHTML('filter')
-      :('<div class="taste-grid">'+tasteNewCardHTML()+'</div>'+tasteEmptyHTML('empty'));
+      :(canCreate
+        ?('<div class="taste-grid">'+tasteNewCardHTML()+'</div>'+tasteEmptyHTML('empty'))
+        :tasteEmptyHTML('folder'));
     return;
   }
   body.innerHTML='<div class="taste-grid">'+
     list.map(function(it,i){return tasteCardHTML(it,no[i]||{index:i+1,total:list.length});}).join('')+
-    tasteNewCardHTML()+
+    (canCreate?tasteNewCardHTML():'')+
   '</div>';
   fitTasteTags();
   /* 字体晚一步到位会把胶囊量窄：等字体就绪重量一次（只补这一次，不改观感） */
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitTasteTags);
+}
+
+/* 「N 条还没有写进文件夹 · 点这里落盘」（T9）：有就画、没有就收起。
+   没连文件夹时**也画** —— 那时它的作用是把人领到「选文件夹」那一步，
+   而不是假装能写；条数照样是真实的（那些条目确实还没写进任何文件夹）。
+   预览模式（铺样式用的假数据）下必须收起来：那条提示说的是真实库的状态，
+   跟屏幕上这堆示例卡片放在一起会把两件事搅成一件。 */
+function renderTastePending(preview){
+  var bar=document.getElementById('tastePendingBar');
+  if(!bar)return;
+  var n=preview?0:tastePending.length;
+  if(!n){ bar.hidden=true; bar.innerHTML=''; return; }
+  bar.hidden=false;
+  bar.innerHTML='<button type="button" class="btn-ghost" id="tastePendingWrite">'+
+    n+' 条还没有写进文件夹 · 点这里落盘</button>';
+}
+/* 手动补写：走的是跟自动补写同一条 mirrorTaste（里面会先试着把文件夹权限要回来）。
+   写不进去也要说清是哪一种「没写成」：一条都没少 vs 少了一部分（那几张图的字节
+   本来就不在这台机器上，镜像写不出东西，得靠备份文件再导一次）。 */
+async function writePendingTaste(){
+  var before=tastePending.length;
+  var ok=await mirrorTaste();
+  await renderTasteSafe();
+  var after=tastePending.length;
+  if(!after) toast(before?('已把 '+before+' 条写进文件夹'):'文件夹里已经是最新的');
+  else if(ok) toast('还有 '+after+' 条没写进去：这几张图的字节不在这台机器上了');
+  else toast('这次没写进文件夹，稍后再试');
 }
 /* 真数据的渲染是异步的：条目在 localStorage（经 T3 的仓库），封面字节在 IndexedDB。
    回来的次序不保证 —— 连点两次视图切换时，先发的请求可能后回来；放一个序号，
@@ -6016,18 +6269,11 @@ var tasteRenderSeq=0;
 async function renderTaste(){
   var body=document.getElementById('tasteBody');
   if(!body)return;
+  renderTastePending(!!TASTE_PREVIEW.on);
   if(TASTE_PREVIEW.on){
     setTasteSearchEnabled(true);
     renderTasteTagBar(tasteAllTags(TASTE_FAKE));
     paintTaste(TASTE_FAKE);
-    return;
-  }
-  /* 没连文件夹 → 第一套空态，网格与新建卡都不出现（硬规则：不显示还做不到的能力）；
-     筛选行这时也筛不出任何东西，连着标签条一起收起来。 */
-  if(!dirHandle){
-    setTasteSearchEnabled(false);
-    renderTasteTagBar([]);
-    body.innerHTML=tasteEmptyHTML('folder');
     return;
   }
   setTasteSearchEnabled(true);
@@ -6048,9 +6294,23 @@ async function renderTaste(){
     all=[];items=[];numbers=[];
   }
   if(seq!==tasteRenderSeq)return;
+  /* 没连文件夹、库里也确实空的 → 第一套空态（硬规则：不显示还做不到的能力），
+     筛选行这时也筛不出任何东西，连着标签条一起收起来。
+     可库里**有**东西时不能走这条路：导入进来的条目是真实存在的（元数据在本机、
+     图片在 IndexedDB），刷新也不会丢，它们必须看得见、筛得动 —— 只是不给新建卡
+     （T9 对 spec L127 的落地：创建要文件夹，恢复不要）。 */
+  if(!dirHandle&&!all.length){
+    setTasteSearchEnabled(false);
+    renderTasteTagBar([]);
+    body.innerHTML=tasteEmptyHTML('folder');
+    return;
+  }
   renderTasteTagBar(tasteAllTags(all,tasteFilter.tags));
   /* 仓库失败时不能说「没有符合条件的收藏」—— 那是把故障说成筛选结果 */
-  paintTaste(items,numbers,{filtered:!failed&&!!(tasteFilter.search||tasteFilter.tags.length)});
+  paintTaste(items,numbers,{
+    filtered:!failed&&!!(tasteFilter.search||tasteFilter.tags.length),
+    canCreate:!failed&&!!dirHandle,
+  });
 }
 /* 有些地方（连上文件夹之后、句柄异步恢复之后）只是想让网格醒过来，不需要等它，
    但也不能把 renderTaste 的异常变成 unhandled rejection：出错时在验收后门上
@@ -6158,6 +6418,18 @@ document.addEventListener('click',function(e){
        这里拿到的是整张卡片 —— closest('.taste-card-open') 在边框上会返回 null，
        焦点就没地方还了；传卡片进去，归还时再落到它里面的覆盖按钮上。 */
     openTasteDetail(card.getAttribute('data-id')||'',card);
+    return;
+  }
+  /* 待落盘那一条（T9）：连了文件夹就直接补写一轮；没连就先把人领去选文件夹
+     （跟「空态里那颗选择文件夹」走同一条既有流程，不另起一套）。 */
+  if(t.closest('#tastePendingWrite')){
+    if(!dirHandle){
+      toast('先选一个文件夹，这些收藏才写得进去');
+      var pendingPick=document.getElementById('storageBtn');
+      if(pendingPick)pendingPick.click();
+      return;
+    }
+    writePendingTaste();
     return;
   }
   /* 筛选无果那套空态里的「清空筛选」：搜索词与标签一起清掉，再把光标放回搜索框，
@@ -6747,6 +7019,7 @@ async function tasteDeleteEntry(id){
     var item=await repo.get(id);
     await repo.delete(id);
     try{ await images.removeItem(id); }catch(e){}
+    forgetTastePending(id);   /* 这条不用再等落盘了（没连文件夹时镜像跑不到对账那一步） */
     closeTasteDetail();
     closeTasteForm();
     await renderTaste();
@@ -6982,6 +7255,47 @@ function saveTasteMirrored(){ try{ localStorage.setItem(TASTE_MIRROR_KEY,JSON.st
    品味库.md、images/ 空空如也。日记那边同时清 lastSynced，是同一个道理。 */
 function resetTasteMirrored(){ tasteMirrored = {}; saveTasteMirrored(); }
 
+/* —— 待落盘（T9 / issue #11）——
+   导入备份**不要求先连文件夹**（spec L127 那条刻意的反转）：恢复的典型场景是
+   「我在新机器上救我的东西」，先逼人建文件夹是最烦的顺序。于是导入进来的条目
+   先落成「待落盘」：元数据在 localStorage、图片字节在 IndexedDB，都真实存在、
+   刷新也不会丢，只是还没写进文件夹。
+   名单存在 localStorage 里（不是内存），因为票 AC6 要求这个条数**熬过刷新**；
+   它同时决定哪几张卡带角标。 */
+var TASTE_PENDING_KEY='yuki_taste_pending_v1';
+var tastePending=(function(){ try{ var a=JSON.parse(localStorage.getItem(TASTE_PENDING_KEY)); return Array.isArray(a)?a:[]; }catch(e){ return []; } })();
+function saveTastePending(){ try{ localStorage.setItem(TASTE_PENDING_KEY,JSON.stringify(tastePending)); }catch(e){} }
+function isTastePending(id){ return !!id&&tastePending.indexOf(id)>=0; }
+function markTastePending(ids){
+  var changed=false;
+  (ids||[]).forEach(function(id){ if(id&&tastePending.indexOf(id)<0){ tastePending.push(id); changed=true; } });
+  if(changed)saveTastePending();
+}
+/* 用户删掉这条收藏时立刻销账。因为名单平时靠镜像那一轮对账来清，而没连文件夹时
+   根本跑不到那一轮（mirrorTaste 会立刻返回 false）—— 「导入 3 条、删掉 1 条」就会
+   一直显示 3 条：提示比网格里还多一条，是明摆着的假话。 */
+function forgetTastePending(id){
+  if(!id) return;
+  var at=tastePending.indexOf(id);
+  if(at<0) return;
+  tastePending.splice(at,1);
+  saveTastePending();
+}
+/* 一轮镜像跑完就把真落盘的条目从名单里摘掉。判断依据**不是**「路径长什么样」（文件名
+   约定是 T4 内部的事，界面层不该重算一遍），而是 mirrorTasteLibrary 直接报回来的
+   `missingBytes`：这一轮哪些条目「图还挂着、本机读不到字节」。没被点名的就是写成了，
+   包括一张图都没有的条目 —— 它的元数据已经随 index.json 与 品味库.md 一起落下去了。
+   条目已经不在库里（被删了）也一并摘掉：没有「等」的意义了。 */
+function settleTastePending(items,missingBytes){
+  if(!tastePending.length) return 0;
+  var alive={},missing={},left=[];
+  (items||[]).forEach(function(it){ alive[it.id]=true; });
+  (missingBytes||[]).forEach(function(id){ missing[id]=true; });
+  tastePending.forEach(function(id){ if(alive[id]&&missing[id]) left.push(id); });
+  if(left.length!==tastePending.length){ tastePending=left; saveTastePending(); }
+  return left.length;
+}
+
 /* 条目元数据的后端：spec 的三层表把「条目元数据（不含图）」划给 localStorage
    （IndexedDB 只放图片字节）。T1 的适配层契约只有 get/set/delete/keys/ready，
    这里就地包一个；storage 由调用方传进来，跟 T1 那几个模块一个规矩：
@@ -7103,6 +7417,9 @@ async function mirrorTaste(){
     });
     tasteMirrored=res.mirrored;
     saveTasteMirrored();
+    /* 这一轮跑成了：把真的写下去的条目从「待落盘」名单里摘掉（T9）。
+       摘完名单为空，界面上那条提示自己就没了。 */
+    settleTastePending(items,res.missingBytes);
     return true;
   }catch(err){
     /* 磁盘只是镜像：这里失败不该让整条同步流程崩掉，但也不能一句话都不留 ——
@@ -7221,9 +7538,11 @@ function describeStorage(){
     return;
   }
   if(dirHandle){
-    d.innerHTML = '日记现在会同时写两份：<br>① 浏览器本地存储（页面读取用）<br>② 你选的文件夹「<b>' + esc(dirHandle.name || '') + '</b>」，每次保存自动更新 <code>白色相簿日记.json</code>，并按日期生成 <code>日记/YYYY-MM-DD.md</code>，图片放在 <code>日记/images/</code>。';
+    d.innerHTML = '日记与品味库都会同时写两份：<br>① 浏览器本地存储（页面读取用）<br>② 你选的文件夹「<b>' + esc(dirHandle.name || '') + '</b>」——每次保存自动更新 <code>白色相簿日记.json</code>，并按日期生成 <code>日记/YYYY-MM-DD.md</code>，图片在 <code>日记/images/</code>；品味库写在 <code>品味库/index.json</code>，另附一份能用文本编辑器直接读的 <code>品味库/品味库.md</code>，图片在 <code>品味库/images/</code>。';
   }else{
-    d.innerHTML = '目前日记只保存在<b>这个浏览器</b>里：换浏览器、换电脑或清理浏览数据都会丢，容量也只有 5MB 左右。<br>选一个本地文件夹后，每次保存都会自动同步进去，数据就归你自己管。';
+    /* 这里原来写「容量也只有 5MB 左右」：那是日记正文的账，品味库的图片字节
+       改存 IndexedDB 之后，整站已经不止这个数了，留着会把人吓跑。 */
+    d.innerHTML = '目前数据只保存在<b>这个浏览器</b>里：换浏览器、换电脑或清理浏览数据都会丢。<br>选一个本地文件夹后，每次保存都会自动同步进去，数据就归你自己管；侧栏的「导出备份」会把日记与品味库一起装进同一个文件（图片也在里面）。';
   }
 }
 document.getElementById('storageBtn').addEventListener('click',function(){
