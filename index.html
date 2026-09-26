@@ -2049,7 +2049,11 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   .heat-panel{padding:20px 16px}
   .chart-panel{padding:18px 16px 10px}
   .cal-nav button{width:38px;height:38px}
-  .nav-item,.cal-nav button,.tb-chip,.tag,.tool-btn{min-height:36px}
+  /* 这组原本把 .nav-item 也一起压到 36px，会盖掉上面那条 min-height:52px
+     （同特异性、写在后面）。导航项自己那条才是设计值，实测也一直是 56px
+     （图标 + 12px 文字撑起来的），所以把它从这组里摘出去，别留这种
+     「看着没事、一改内容就塌」的暗坑。 */
+  .cal-nav button,.tb-chip,.tag,.tool-btn{min-height:36px}
   .noise-panel{right:14px;bottom:16px}
   .noise-panel.open .noise-ctl,
   .noise-panel:focus-within .noise-ctl{max-width:min(62vw,420px)}
@@ -6073,7 +6077,9 @@ document.getElementById('trashEmpty').addEventListener('click',function(){
 /* 卡片骨架参考站点主人给的那张参考图：缩略图 → 标题行（左主标题 + 右副标题小字）
    → 标签胶囊（最多 4 颗，多的折成 +N）→ 底栏（● 分类名 + 序号）。
    这一票只搭壳：数据是下面这组示例（真数据已在 T5 接上，示例只留给
-   `__tastePreview()` 铺满网格看样式用，T12 收尾时删），新建卡在 T5 接上，
+   `__tastePreview()` 铺满网格看样式用；T12 验收时决定**保留**它 —— T2 那几支
+   探针（`probe-t2-shell`、`probe-t2-preview` 等）要靠它铺满网格看版式，
+   删掉等于把这批回归门一起删掉），新建卡在 T5 接上，
    筛选行在 T7 接上（示例数据不参与真筛选，点了只会给一句说明）；
    「必须先连文件夹」这条硬规则从 T4 起成立。 */
 
@@ -6431,7 +6437,7 @@ async function renderTaste(){
   });
 }
 /* 有些地方（连上文件夹之后、句柄异步恢复之后）只是想让网格醒过来，不需要等它，
-   但也不能把 renderTaste 的异常变成 unhandled rejection：出错时在验收后门上
+   但也不能把 renderTaste 的异常变成 unhandled rejection：出错时在验收工装上
    留一句，页面照旧能用。返回 Promise，好让调用方在画完之后接着做事
    （焦点要还给刚点的那颗胶囊、清空筛选后要把光标放回搜索框）。 */
 function renderTasteSafe(){
@@ -6489,8 +6495,9 @@ window.addEventListener('resize',function(){
     if(ind)ind.style.transition='';
   },140);
 });
-/* 只看视觉对不对时的开关（探针铺满网格、看样式时用；T12 收尾时连同
-   TASTE_FAKE 一起删）：控制台里 `__tastePreview()` 开、`__tastePreview(false)` 关。 */
+/* 只看视觉对不对时的开关（探针铺满网格、看样式时用；T12 验收时决定保留 ——
+   理由见上面 TASTE_FAKE 那段注释）：控制台里 `__tastePreview()` 开、
+   `__tastePreview(false)` 关。 */
 window.__tastePreview=function(on){
   TASTE_PREVIEW.on=on!==false;
   renderTasteSafe();
@@ -7541,17 +7548,22 @@ async function mirrorTaste(){
     return true;
   }catch(err){
     /* 磁盘只是镜像：这里失败不该让整条同步流程崩掉，但也不能一句话都不留 ——
-       验收用的后门会把最后一次失败原样报出来，省得现场只能靠猜。 */
+       验收工装会把最后一次失败原样报出来，省得现场只能靠猜。 */
     if(window.__tasteTest) window.__tasteTest.lastMirrorError=String(err&&err.message||err);
     return false;
   }
 }
 
-/* 验收用的后门（临时）：端到端探针没法在无头浏览器里点系统选文件夹对话框，
-   只能把目录句柄直接交给站点（日记那边早就有 __diaryFS.use 先例）。
-   `.shots/probe-t4-disk.mjs` 与 `probe-t5-create.mjs` 都靠它取仓库与目录句柄，
-   所以**不能**在 T5 这一票删；留到 T12 最终验收时，连同 TASTE_FAKE /
-   __tastePreview 一起清掉。 */
+/* 验收用的工装（不是产品功能）：无头浏览器里点不了系统那个「选一个文件夹」的对话框，
+   端到端探针只能把目录句柄直接交给站点（日记那边早就有 __diaryFS.use 先例），
+   顺手把仓库与镜像也开在同一个口子上，省得每支探针各开各的后门。
+   `.shots/` 里十六支探针、六十多行引用它（probe-t4/t5/t11/t12/t13 …）；
+   T12 验收时因此决定**保留**：删掉它等于把这套浏览器回归门一起删掉
+   （那批探针在 `.shots/` 里、不入仓库，所以这条理由只对本机这份工作副本成立）。
+   挂上去这个动作本身不做任何事 —— 只有显式调 `use`/`mirror` 才会动状态
+   （`use` 落到 `__diaryFS.use`：改 dirHandle、刷存储面板），
+   也就是「多挂一个对象」，不碰界面、不进存储、不改任何默认行为。
+   名字里的 Test 就是它的定位：这是工装面，不是给用户用的入口。 */
 window.__tasteTest={
   repo:tasteRepo,
   images:tasteImages,
