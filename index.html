@@ -1217,15 +1217,26 @@ body[data-theme="dark"] .heat-cell.l4{background:var(--ice200);border-color:var(
   font-family:inherit;font-size:16px;color:var(--text);
 }
 .taste-search input::placeholder{color:var(--text-muted)}
-/* 搜索框此刻只是摆位置（T7 才接线）：别让它看起来像能用的控件 */
-.taste-search input[aria-disabled="true"]{cursor:default}
+/* 没连文件夹时搜索框是真的 disabled（那时没有可筛的东西）：
+   光标与文字色都要说清「现在按不动」，而不是看起来像坏的 */
+.taste-search input:disabled{cursor:default;color:var(--text-disabled)}
 .taste-search:focus-within{border-color:var(--accent)}
 /* 标签条横向滚动、不换行：标签多起来不能把卡片往下推 */
-/* 标签行（T7 接线）：还没筛之前不显示，给 :empty 留个去处 */
-.taste-tagbar{display:flex;align-items:center;gap:7px;overflow-x:auto;padding-bottom:2px}
+.taste-tagbar{display:flex;align-items:center;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+/* 一颗标签都没有时整条不出现（:empty 下面那条） */
 .taste-tagbar:empty{display:none}
 .taste-tagbar::-webkit-scrollbar{height:0}
 .taste-tagbar .tag{white-space:nowrap;flex:0 0 auto}
+/* 标签条里的胶囊是真按钮（点一颗就地筛选），而 .tag 原本只给 span 用：
+   按钮不会继承字体，不补这一句就会掉回系统 UI 字体。 */
+.taste-tagbar button.tag{font-family:inherit;cursor:pointer}
+/* 这一条胶囊是**直接站在壁纸上**的（日记那边的胶囊都坐在卡片上）：
+   只描边 + --text-muted 的话，浅色壁纸上的字几乎看不见（截图里 narwhal / quokka
+   那一排糊成一片）。跟搜索框取同一个底：--surface + 同一条描边，任何壁纸上都读得清。 */
+.taste-tagbar .tag{background:var(--surface)}
+/* 选中态只看 aria-pressed，不再另挂一个类：状态只有一个来源，
+   也就不会出现「类没跟上、视觉与语义打架」 */
+.taste-tagbar .tag[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:500}
 
 /* 下限 310px：卡片窄到 280 时，主标题与副标题挤在一行里谁也放不下
    （「Halftone Sails Collage」当场被截成省略号）。310 让这一栏稳定落在 3 列，
@@ -2111,7 +2122,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 
 @media (prefers-contrast:more){
   :root{--border:var(--n400);--border-strong:var(--n500);--text-muted:var(--n700)}
-  .nav-item.active,.tb-chip.on,.tag.sel{background:var(--accent);color:var(--accent-ink)}
+  /* 选中态的名单要跟上：品味库的筛选胶囊用 aria-pressed 表达选中（不是 .tag.sel 那个类），
+     漏掉它的话增强对比屏下它拿不到实心底，成了唯一一颗「看不清选没选」的控件。 */
+  .nav-item.active,.tb-chip.on,.tag.sel,
+  .taste-tagbar .tag[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 }
 </style>
 </head>
@@ -2409,14 +2423,15 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
         <div class="line"></div>
       </div>
       <div class="taste-toolbar">
-        <!-- 筛选行（T7 接线）：搜索框与标签条此刻只摆位置，输入不会筛出结果，
-             所以先用 aria-disabled 说清楚，免得读屏用户以为它们坏了。 -->
+        <!-- 筛选行（T7）：搜索框固定显示，标签条横向滚动不换行。
+             没连文件夹时 JS 会把搜索框置成 disabled —— 那时库里什么都没有，
+             留一个点得动却没东西可筛的输入框只会把人带进死路。 -->
         <div class="taste-search">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <label class="sr-only" for="tasteSearchInput">搜索收藏</label>
-          <input id="tasteSearchInput" type="text" placeholder="搜索标题、副标题、笔记、网址或标签…" aria-disabled="true" title="筛选还没接上，这一步在后面的更新里">
+          <input id="tasteSearchInput" type="text" autocomplete="off" placeholder="搜索标题、副标题、笔记、网址或标签…">
         </div>
-        <div class="taste-tagbar" id="tasteTagBar"></div>
+        <div class="taste-tagbar" id="tasteTagBar" role="group" aria-label="按标签筛选"></div>
       </div>
       <div class="taste-pane" id="tasteBody"></div>
     </section>
@@ -5724,10 +5739,9 @@ document.getElementById('trashEmpty').addEventListener('click',function(){
 /* 卡片骨架参考站点主人给的那张参考图：缩略图 → 标题行（左主标题 + 右副标题小字）
    → 标签胶囊（最多 4 颗，多的折成 +N）→ 底栏（● 分类名 + 序号）。
    这一票只搭壳：数据是下面这组示例（真数据已在 T5 接上，示例只留给
-   `__tastePreview()` 铺满网格看样式用，T12 收尾时删），
-   新建卡在 T5 接上了，筛选框仍只摆位置（T7 才接行为）；「必须先连文件夹」
-   这条硬规则要等文件夹连接落地（T4）后才成立，在那之前让入口可点只会把
-   用户带进死路。 */
+   `__tastePreview()` 铺满网格看样式用，T12 收尾时删），新建卡在 T5 接上，
+   筛选行在 T7 接上（示例数据不参与真筛选，点了只会给一句说明）；
+   「必须先连文件夹」这条硬规则从 T4 起成立。 */
 
 var TASTE_PREVIEW = { on:false };
 var TASTE_FAKE = [
@@ -5748,9 +5762,12 @@ var TASTE_FAKE = [
     tags:['portrait circle crop','soft neutral ground','rounded form field'] }
 ];
 
-function tasteCardHTML(item,index,total){
+/* 序号收成 {index,total} 一个参数：总数由仓库的 numbering() 算（T3），
+   「01 / 12」里的 12 是**筛选之后**的总数，不是全量。 */
+function tasteCardHTML(item,no){
   var all=item.tags||[];
   var cover=(item.images||[])[0];
+  var num=no||{index:1,total:1};
   /* 缩略图位有三种样子：有封面字节 → 真图；文本类 → 一段浅底色笔记预览（spec L155）；
      其余 → 图片占位符。笔记预览不带右上角那个「翻页」三角：它不是一张网页的预览。 */
   var thumb;
@@ -5788,7 +5805,7 @@ function tasteCardHTML(item,index,total){
       '</div>'+
     '</div>'+
     '<div class="taste-foot"><div class="taste-cat"><span>'+esc(item.category||'')+'</span></div>'+
-      '<div class="taste-no">'+pad(index+1)+' / '+total+'</div></div>'+
+      '<div class="taste-no">'+pad(num.index)+' / '+num.total+'</div></div>'+
   '</article>';
 }
 /* 卡片骨架里的标签行：一排放不下就收尾成「+N」，绝不让胶囊被切成半颗。
@@ -5853,7 +5870,7 @@ function tasteEmptyHTML(kind){
       '<p>品味库把缩略图存在你指定的文件夹里。先选一个文件夹，再开始收藏。</p>'+
       '<button type="button" class="btn-ghost" id="tastePickFolder">选择文件夹</button>');
   }
-  /* 这一套要到 T7 才有人调（筛选接上之后）。留着是因为三套文案是同一份规格的一部分，
+  /* 第三套空态：筛出来是空的（T7 接上了）。三套文案是同一份规格的一部分，
      分开写容易只改一套。 */
   if(kind==='filter'){
     return wrap('filter',
@@ -5889,16 +5906,103 @@ async function tasteHydrateCovers(items,images){
   }
   return out;
 }
-/* 只负责把已经拿到的条目画出来（示例数据与真数据走同一条出口） */
-function paintTaste(items){
+/* ================= 品味库：筛选行（T7 / issue #10） =================
+   搜索与标签筛选都是**纯前端**：只改仓库交回来的那份列表，不碰磁盘、不改条目本身
+   （spec 的「筛选」一节）。筛选状态只活在内存里 —— 刷新回到全量，免得下次打开时
+   对着一屏「少了一半」的库发懵。 */
+var tasteFilter={search:'',tags:[]};
+
+/* 标签条的来源是**全量**条目的标签，不是当前筛选结果：胶囊得待在自己的位置上，
+   否则选中一颗就把别的挤没、第二颗再也点不到，多选取交集就无从谈起。
+   `selected` 是当前选中的那几颗：它们哪怕已经不在全量里（筛选着的时候把最后一条带
+   这个标签的收藏编辑掉了），也得留在标签条上 —— 筛选还在生效，界面上却没有任何
+   东西表示「正在按它筛」，用户只能靠「全部」瞎猜着退。 */
+function tasteAllTags(items,selected){
+  var seen={},out=[];
+  (items||[]).forEach(function(it){
+    (it.tags||[]).forEach(function(t){
+      var key=String(t);
+      /* 判「见过没有」必须用 `!== undefined`：计数是从 0 起算的，
+         写成 `if(seen[key])` 会把每一条都当成新的，标签条上就会出现四颗 capybara。 */
+      if(!key||seen[key]!==undefined)return;
+      seen[key]=0;
+      out.push(key);
+    });
+  });
+  (items||[]).forEach(function(it){
+    (it.tags||[]).forEach(function(t){ if(seen[String(t)]!==undefined)seen[String(t)]++; });
+  });
+  /* 补进来的选中标签计数留在 0，排序时自然落到末尾 —— 它确实是最少见的那个 */
+  (selected||[]).forEach(function(t){
+    var key=String(t);
+    if(!key||seen[key]!==undefined)return;
+    seen[key]=0;
+    out.push(key);
+  });
+  /* 常用的排前面：先按出现次数、再按名字。顺序定死，两次渲染之间胶囊不会自己换位 */
+  out.sort(function(a,b){
+    var d=seen[b]-seen[a];
+    return d!==0?d:(a<b?-1:(a>b?1:0));
+  });
+  return out;
+}
+
+function tasteChipHTML(tag,on,label){
+  return '<button type="button" class="tag" data-tag="'+esc(tag)+'" aria-pressed="'+(on?'true':'false')+'">'+esc(label)+'</button>';
+}
+
+/* 标签条：第一颗是「全部」（清掉标签这一维），后面每颗是一枚可切换的标签。
+   一颗标签都没有时整条不出现。 */
+function renderTasteTagBar(allTags){
+  var bar=document.getElementById('tasteTagBar');
+  if(!bar)return;
+  var tags=allTags||[];
+  if(!tags.length&&!tasteFilter.tags.length){bar.innerHTML='';return;}
+  bar.innerHTML=tasteChipHTML('',tasteFilter.tags.length===0,'全部')+
+    tags.map(function(t){return tasteChipHTML(t,tasteFilter.tags.indexOf(t)>=0,t);}).join('');
+}
+
+/* 焦点还给刚点的那颗胶囊：重画标签条会把被点的那个节点换掉，焦点会掉到 body。
+   按 data-tag 现查而不是拼选择器 —— 标签是用户自己打的字，里面可能有引号。 */
+function focusTasteChip(tag){
+  var bar=document.getElementById('tasteTagBar');
+  if(!bar)return;
+  var chips=bar.querySelectorAll('.tag');
+  for(var i=0;i<chips.length;i++){
+    if((chips[i].getAttribute('data-tag')||'')===tag){
+      if(chips[i].focus)chips[i].focus();
+      return;
+    }
+  }
+}
+
+/* 没连文件夹时搜索框要显得「暂时按不动」，而不是像坏的：真 disabled（读屏会念出来），
+   title 里说清原因。 */
+function setTasteSearchEnabled(on){
+  var input=document.getElementById('tasteSearchInput');
+  if(!input)return;
+  input.disabled=!on;
+  if(on){input.removeAttribute('title');}
+  else{input.setAttribute('title','先选一个文件夹，才能搜索收藏');}
+}
+
+/* 只负责把已经拿到的条目画出来（示例数据与真数据走同一条出口）。
+   numbers 与 items 一一对应（仓库的 numbering()），没给就退回「第几条 / 共几条」。 */
+function paintTaste(items,numbers,opts){
   var body=document.getElementById('tasteBody');
   if(!body)return;
-  if(!items.length){
-    body.innerHTML='<div class="taste-grid">'+tasteNewCardHTML()+'</div>'+tasteEmptyHTML('empty');
+  var list=items||[],no=numbers||[],o=opts||{};
+  if(!list.length){
+    /* 两套空态必须长得不一样（票 AC7）：库里本来就空 → 「还没有收藏任何东西」，
+       并把虚线卡摆出来；筛出来是空 → 「没有找到符合条件的收藏」再加一句怎么退回去。
+       筛空时**不摆**虚线卡：那时的下一步是换个关键词，不是再收一件。 */
+    body.innerHTML=o.filtered
+      ?tasteEmptyHTML('filter')
+      :('<div class="taste-grid">'+tasteNewCardHTML()+'</div>'+tasteEmptyHTML('empty'));
     return;
   }
   body.innerHTML='<div class="taste-grid">'+
-    items.map(function(it,i){return tasteCardHTML(it,i,items.length);}).join('')+
+    list.map(function(it,i){return tasteCardHTML(it,no[i]||{index:i+1,total:list.length});}).join('')+
     tasteNewCardHTML()+
   '</div>';
   fitTasteTags();
@@ -5912,36 +6016,68 @@ var tasteRenderSeq=0;
 async function renderTaste(){
   var body=document.getElementById('tasteBody');
   if(!body)return;
-  var tagbar=document.getElementById('tasteTagBar');
-  if(tagbar)tagbar.innerHTML='';
-  if(TASTE_PREVIEW.on){ paintTaste(TASTE_FAKE); return; }
-  /* 没连文件夹 → 第一套空态，网格与新建卡都不出现（硬规则：不显示还做不到的能力） */
-  if(!dirHandle){ body.innerHTML=tasteEmptyHTML('folder'); return; }
+  if(TASTE_PREVIEW.on){
+    setTasteSearchEnabled(true);
+    renderTasteTagBar(tasteAllTags(TASTE_FAKE));
+    paintTaste(TASTE_FAKE);
+    return;
+  }
+  /* 没连文件夹 → 第一套空态，网格与新建卡都不出现（硬规则：不显示还做不到的能力）；
+     筛选行这时也筛不出任何东西，连着标签条一起收起来。 */
+  if(!dirHandle){
+    setTasteSearchEnabled(false);
+    renderTasteTagBar([]);
+    body.innerHTML=tasteEmptyHTML('folder');
+    return;
+  }
+  setTasteSearchEnabled(true);
   var seq=++tasteRenderSeq;
-  var items=[];
+  var all=[],items=[],numbers=[],failed=false;
   try{
     var repo=await tasteRepo();
-    items=await repo.list();
+    /* 两次 list：全量那份只为拿标签（给标签条），另一份按当前筛选给网格。
+       都是内存里的过滤，没有额外的读盘。 */
+    all=await repo.list();
+    items=await repo.list({search:tasteFilter.search,tags:tasteFilter.tags});
+    numbers=items.map(function(it,i){return repo.numbering(items,i);});
     if(items.length) items=await tasteHydrateCovers(items,await tasteImages());
   }catch(e){
     /* 仓库起不来（比如浏览器没有 IndexedDB）不该把页面打崩：退回空态，
        真实入口仍是「选文件夹」，用户至少知道下一步点哪儿。 */
-    items=[];
+    failed=true;
+    all=[];items=[];numbers=[];
   }
   if(seq!==tasteRenderSeq)return;
-  paintTaste(items);
+  renderTasteTagBar(tasteAllTags(all,tasteFilter.tags));
+  /* 仓库失败时不能说「没有符合条件的收藏」—— 那是把故障说成筛选结果 */
+  paintTaste(items,numbers,{filtered:!failed&&!!(tasteFilter.search||tasteFilter.tags.length)});
 }
 /* 有些地方（连上文件夹之后、句柄异步恢复之后）只是想让网格醒过来，不需要等它，
    但也不能把 renderTaste 的异常变成 unhandled rejection：出错时在验收后门上
-   留一句，页面照旧能用。 */
+   留一句，页面照旧能用。返回 Promise，好让调用方在画完之后接着做事
+   （焦点要还给刚点的那颗胶囊、清空筛选后要把光标放回搜索框）。 */
 function renderTasteSafe(){
   try{
     var p=renderTaste();
-    if(p&&typeof p.catch==='function')p.catch(function(err){
+    if(p&&typeof p.catch==='function')return p.catch(function(err){
       if(window.__tasteTest)window.__tasteTest.lastRenderError=String((err&&err.message)||err);
     });
   }catch(e){}
+  return Promise.resolve();
 }
+/* 搜索框：输入即筛。去抖 160ms —— 每敲一个字都重画网格会连着读一遍封面字节，
+   库大时肉眼可见地卡（与站内雪花那段的去抖同一个量级）。焦点不会丢：
+   输入框在 #tasteBody 之外，重画网格动不到它。 */
+(function wireTasteSearch(){
+  var input=document.getElementById('tasteSearchInput');
+  if(!input)return;
+  var timer=0;
+  input.addEventListener('input',function(){
+    tasteFilter.search=input.value;
+    clearTimeout(timer);
+    timer=setTimeout(function(){renderTasteSafe();},160);
+  });
+})();
 /* 卡片宽度随窗口变，能放下几颗胶囊也跟着变：重排后重量一次（沿用站内既有
    的 resize 去抖写法，见雪花那段的 140ms）。 */
 var tasteFitTimer=0;
@@ -5997,6 +6133,20 @@ document.addEventListener('click',function(e){
     return;
   }
   if(t.closest('#tasteNewCard')){ openTasteForm(); return; }
+  /* 标签胶囊（T7）：点一颗就地筛，再点一次取消它；「全部」清掉标签这一维。
+     筛完要把焦点还给刚点的那颗 —— 重画标签条会把被点的节点换掉。 */
+  var chip=t.closest('.taste-tagbar .tag');
+  if(chip){
+    if(TASTE_PREVIEW.on){ tasteNotReady('这是铺样式用的示例数据，关掉预览才能真的筛选'); return; }
+    var chipTag=chip.getAttribute('data-tag')||'';
+    if(!chipTag){ tasteFilter.tags=[]; }
+    else{
+      var at=tasteFilter.tags.indexOf(chipTag);
+      if(at<0)tasteFilter.tags.push(chipTag); else tasteFilter.tags.splice(at,1);
+    }
+    renderTasteSafe().then(function(){ focusTasteChip(chipTag); });
+    return;
+  }
   /* 角落那枚编辑按钮要先判：它自己就长在卡片里面，先判 .taste-card 会把它一起吞掉 */
   var editBtn=t.closest('.taste-flip');
   if(editBtn){ openTasteForm(editBtn.getAttribute('data-edit')||''); return; }
@@ -6010,7 +6160,15 @@ document.addEventListener('click',function(e){
     openTasteDetail(card.getAttribute('data-id')||'',card);
     return;
   }
-  if(t.closest('#tasteClearFilter'))tasteNotReady('筛选还没接上，这一步在后面的更新里');
+  /* 筛选无果那套空态里的「清空筛选」：搜索词与标签一起清掉，再把光标放回搜索框，
+     用户可以立刻重打一个词 —— 清完焦点悬在 body 上是最扫兴的收尾。 */
+  if(t.closest('#tasteClearFilter')){
+    var searchInput=document.getElementById('tasteSearchInput');
+    tasteFilter.search='';
+    tasteFilter.tags=[];
+    if(searchInput)searchInput.value='';
+    renderTasteSafe().then(function(){ if(searchInput&&searchInput.focus)searchInput.focus(); });
+  }
 });
 
 /* ================= 品味库：添加一件收藏（T5 / issue #8） =================
