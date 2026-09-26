@@ -2031,6 +2031,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   main{padding:20px 14px 60px}
   .view-head{margin-bottom:20px}
   .view-head h2{font-size:var(--fs-9)}
+  /* 标题那条白纱（.view-head::before）原本向左右各溢出 28px：桌面 main 内边距宽，看不出来；
+     窄屏 main 只有 14px 内边距，白纱就顶出视口 14px，整页能左右拖（T11 的 AC5）。
+     收成 14px —— 仍然铺到屏幕左右边缘，只是不再越界。 */
+  .view-head::before{left:-14px;right:-14px}
   /* 工具条会折行，竖直分隔线留在行尾就成了孤儿 */
   .toolbar{gap:6px}
   .tool-sep{display:none}
@@ -2061,6 +2065,10 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
   .reader-head .r-date{font-size:var(--fs-7)}
   .reader-title{font-size:var(--fs-6)}
   .modal-box{padding:22px 20px}
+  /* 顶栏五格：320px 宽时每格 53.6px，原本 8px 的左右内边距只剩 45.6px，
+     四个汉字的导航名（4×12px=48px）会被挤成两行 —— 收成 4px 就放得下，
+     五格文字仍然一行、等高。 */
+  .nav-item{padding:8px 2px}
   /* 品味库单列；卡片里副标题的份额收窄一点，把宽度让给主标题 */
   .taste-grid{grid-template-columns:1fr;gap:14px}
   .taste-sub{max-width:38%;text-align:left}
