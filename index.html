@@ -3081,8 +3081,16 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 /* ================= 品味库 · 备份编解码（T8 / issue #5） =================
    全站最不能坏的一块：向后兼容一旦坏了，用户当场丢数据。
 
-      buildBackup(diary, taste, {asObject?}) -> 字符串（默认）/ 对象
-      parseBackup(raw)                       -> { version, versionAhead, diary, taste, kind, entries }
+      buildBackup(diary, taste, trash, {asObject?}) -> 字符串（默认）/ 对象
+      parseBackup(raw) -> { version, versionAhead, diary, taste, trash, hasTrash, kind, entries }
+
+   信封里三个数据集：diary（日记，按日期键）、taste（`{items:[...]}`）、
+   trash（T13 的垃圾桶 `[{key,entry,deletedAt}]` —— 装的是整条日记，连图片的
+   data URL 一起）。垃圾桶必须进备份：它装的是**已经不在日记里的东西**，
+   不给它留一格，换机器恢复完就觉得「全都回来了」，而垃圾桶连同里面的图片
+   已经无声消失。trash 那一格是后加的，所以读到的旧备份可能没有这个键 ——
+   那时 `hasTrash` 是 false、`trash` 为 null，T9 据此补一句「这份备份里没有
+   垃圾桶」，不让它被默默吞掉。
 
    `kind` 说的是「这份备份是从什么形状认出来的」，调用方靠它决定要不要给
    用户那句「这是旧版备份，已按日记导入」：
@@ -3090,10 +3098,12 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
      'mixed'  —— 新格式，日记与品味库都在
      'taste'  —— 新格式，只有品味库
      'diaryOnly' —— 新格式，只有日记
+     'trashOnly' —— 新格式，只有垃圾桶（本站不会产出，防手改文件的兜底）
 
    `entries` 是摊平后的导入清单 `[{ dataset, key, value }]`，两种格式都会给。
    T9 只管遍历它落库、一套计数口径报「新增 N 篇 / 跳过 M 条」；判重键的差别
-   （日记按日期键、品味库按条目 id）留在这一层，省得界面层再抄一遍识别规则。
+   （日记按日期键、品味库按条目 id、垃圾桶也按日期键）留在这一层，省得界面层
+   再抄一遍识别规则。
    `versionAhead` 是「备份来自比本文件更新的版本」，给 T9 一句提示用；高版本
    照样照常解析，不拒绝 —— 换机器/降级时挡在门外等于把能救的数据丢掉。
 
@@ -3108,7 +3118,9 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 (function () {
   'use strict';
 
-  var BACKUP_VERSION = 1;
+  /* 2 = 信封里多了垃圾桶那一格（T13）。版本号跟着「形状变过」走：旧版本号
+     的文件照样读得进来（少了的那格当空桶），只是我们写出去的统一是 2。 */
+  var BACKUP_VERSION = 2;
   var DATE_KEY = /^\d{4}-\d{2}-\d{2}(#\d+)?$/;
 
   function makeUnrecognizedError(detail) {
@@ -3134,7 +3146,8 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     return false;
   }
 
-  // 新格式的信封里，两个数据集的值必须是对象（或者 null＝这份备份里没有它）。
+  // 新格式的信封里，diary 与 taste 的值必须是对象（或者 null＝这份备份里没有它）；
+  // 垃圾桶那一格是数组，走下面的 requireArrayOrNull。
   // 形状不对就当场抛错，不让 T9 走到 Object.keys(undefined) 那一步才知道坏了。
   function requireObjectOrNull(value, label) {
     if (value === null || value === undefined) return null;
@@ -3144,28 +3157,52 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     return value;
   }
 
-  /* 备份格式（顶层同时装两个数据集）：
-       { version: N, diary: {...}, taste: { items: [...] } }
+  /* 垃圾桶那一格的形状是数组（`[{key,entry,deletedAt}]`）。跟 diary / taste 一样
+     宁可当场抛错：等到 T9 遍历它才发现不是数组，报错的地方离病因就远了。 */
+  function requireArrayOrNull(value, label) {
+    if (value === null || value === undefined) return null;
+    if (!Array.isArray(value)) {
+      throw makeUnrecognizedError('' + label + ' 不是一个数组');
+    }
+    return value;
+  }
+
+  /* 备份格式（顶层同时装三个数据集）：
+       { version: N, diary: {...}, taste: { items: [...] },
+         trash: [{ key, entry, deletedAt }] }
 
      条目里的图片以 data URL 内联在同一个 JSON 里 —— 不加 zip、也不给
      「是否包含图片」的开关。把 Blob 读成 data URL 是界面层（T9）的活，
-     这里只负责编解码，所以这一层能保持纯函数。 */
-  function buildBackup(diary, taste, options) {
+     这里只负责编解码，所以这一层能保持纯函数。
+
+     `trash` 缺省写成空数组、而不是省掉这一格：**我们自己写出去的备份永远带着
+     这一格**，于是「没有这一格」就只剩「这是旧备份」一种可能，T9 那句
+     「这份备份里没有垃圾桶」才有准头。
+
+     写出去的这一侧也不吃形状不对的东西：`parseBackup` 遇到非数组的 trash 当场
+     抛错，这里要是把 `'字符串'` 悄悄收成空桶，就算「无声地少了一个数据集」——
+     正是这张票要防的事。 */
+  function buildBackup(diary, taste, trash, options) {
+    if (trash !== null && trash !== undefined && !Array.isArray(trash)) {
+      throw new Error('buildBackup 的垃圾桶必须是一个数组');
+    }
     var payload = {
       version: BACKUP_VERSION,
       diary: diary,
       taste: taste,
+      trash: Array.isArray(trash) ? trash : [],
     };
     if (options && options.asObject) return payload;
     return JSON.stringify(payload);
   }
 
-  /* 把两个数据集摊平成同一张导入清单，交给界面层（T9）一个循环搞定。
+  /* 把三个数据集摊平成同一张导入清单，交给界面层（T9）一个循环搞定。
 
      旧版和新版的判重键不一样：日记按日期键（`2024-01-31`、`2024-12-01#2`），
-     品味库按条目 id。但 T9 要报的「新增 N 篇 / 跳过 M 条」只有一套计数口径，
-     所以识别规则内聚在这里，输出统一的 `{ dataset, key, value }` 列表 ——
-     T9 拿到手只管遍历落库，不用自己再判断「这是哪种备份」。 */
+     品味库按条目 id，垃圾桶也按日期键（它装的就是日记）。但 T9 要报的
+     「新增 N 篇 / 跳过 M 条」只有一套计数口径，所以识别规则内聚在这里，
+     输出统一的 `{ dataset, key, value }` 列表 —— T9 拿到手只管遍历落库，
+     不用自己再判断「这是哪种备份」。 */
   function legacyEntries(diary) {
     var out = [];
     var keys = Object.keys(diary);
@@ -3178,7 +3215,7 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
     return out;
   }
 
-  function newFormatEntries(diary, taste) {
+  function newFormatEntries(diary, taste, trash) {
     var out = [];
     if (diary) {
       var dk = Object.keys(diary);
@@ -3192,6 +3229,18 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
         var item = taste.items[j];
         if (!item || typeof item !== 'object' || typeof item.id !== 'string') continue;
         out.push({ dataset: 'taste', key: item.id, value: item });
+      }
+    }
+    if (Array.isArray(trash)) {
+      for (var t = 0; t < trash.length; t++) {
+        var row = trash[t];
+        /* 坏行跳过而不是让整份备份报废：备份是救命绳，一行坏掉不该拖垮其余。
+           日期键那一条筛掉的是「键根本不像日记」的行 —— T9 会拿 key 去 DB 里
+           比对，形状不对的键放进去只会产生莫名其妙的跳过计数。 */
+        if (!row || typeof row !== 'object') continue;
+        if (typeof row.key !== 'string' || !DATE_KEY.test(row.key)) continue;
+        if (!row.entry || typeof row.entry !== 'object') continue;
+        out.push({ dataset: 'trash', key: row.key, value: row });
       }
     }
     return out;
@@ -3212,32 +3261,44 @@ body[data-theme="dark"] .toast{background:hsl(210 30% 92%);color:var(--n900)}
 
     var hasTaste = Object.prototype.hasOwnProperty.call(value, 'taste');
     var hasDiary = Object.prototype.hasOwnProperty.call(value, 'diary');
-    if (!hasTaste && !hasDiary) {
+    var hasTrashKey = Object.prototype.hasOwnProperty.call(value, 'trash');
+    if (!hasTaste && !hasDiary && !hasTrashKey) {
       if (looksLikeLegacyDiary(value)) {
         var fromLegacy = legacyEntries(value);
         return {
           version: BACKUP_VERSION,
           diary: value,
           taste: null,
+          trash: null,
+          hasTrash: false,
           kind: 'diary',
           versionAhead: false,
           entries: fromLegacy,
         };
       }
-      throw makeUnrecognizedError('既没有 diary / taste 键，也不像旧版的扁平日记备份');
+      throw makeUnrecognizedError('既没有 diary / taste / trash 键，也不像旧版的扁平日记备份');
     }
 
     var diary = hasDiary ? requireObjectOrNull(value.diary, 'diary') : null;
     var taste = hasTaste ? requireObjectOrNull(value.taste, 'taste') : null;
-    var kind = hasDiary && hasTaste ? 'mixed' : (hasTaste ? 'taste' : 'diaryOnly');
+    var trash = hasTrashKey ? requireArrayOrNull(value.trash, 'trash') : null;
+    var kind = hasDiary && hasTaste ? 'mixed'
+      : hasTaste ? 'taste'
+        : hasDiary ? 'diaryOnly'
+          : 'trashOnly';
     var version = typeof value.version === 'number' ? value.version : BACKUP_VERSION;
     return {
       version: version,
       versionAhead: version > BACKUP_VERSION,
       diary: diary,
       taste: taste,
+      trash: trash,
+      /* 说的是「文件里有没有一个能用的桶」：空桶 `[]` **算有**（我们自己导出的空桶
+         备份就会走到这一档，那时不该说「这份备份里没有垃圾桶」），缺这一格或明写
+         null 才算没有 —— 跟 diary / taste 的 null 一个意思。 */
+      hasTrash: Array.isArray(trash),
       kind: kind,
-      entries: newFormatEntries(diary, taste),
+      entries: newFormatEntries(diary, taste, trash),
     };
   }
 
@@ -5623,7 +5684,8 @@ document.getElementById('heatGrid').addEventListener('click',function(e){
 });
 
 /* ================= 导出备份（T9） =================
-   一个 JSON 装下全部东西：日记 + 品味库，图片以 base64 内联在同一个文件里。
+   一个 JSON 装下全部东西：日记 + 品味库 + 垃圾桶（T13），图片以 base64 内联在
+   同一个文件里。
    不加 zip、也不给「是否包含图片」的开关 —— 少一个开关就少一种「备份里到底有没有图」
    的歧义。
    顺序是刻意的：**先估算大小并报出来，再决定要不要往下走**。真正精确的字节数只有把
@@ -5644,12 +5706,16 @@ function mbOf(bytes){ return (bytes/1048576).toFixed(1); }
 function backupTasteList(){
   return tasteRepo().then(function(repo){ return repo.list(); });
 }
-function estimateBackupBytes(diary,items){
-  /* 够用就行的估算：日记与元数据按 UTF-8 真实长度算，图片按 blob.size × 4/3
-     （base64 的膨胀）再加每张 data URL 前缀那几十字节的零头。 */
+function estimateBackupBytes(diary,items,trash){
+  /* 够用就行的估算：日记、元数据与垃圾桶按 UTF-8 真实长度算，图片按 blob.size × 4/3
+     （base64 的膨胀）再加每张 data URL 前缀那几十字节的零头。
+     垃圾桶里装的是**整条日记**（连图片的 data URL 一起），体积可能很可观：漏算它
+     会让「文件较大」这句提醒在该出现的时候不出现。 */
   var bytes=0;
   try{
-    bytes=new Blob([JSON.stringify(diary||{})]).size+new Blob([JSON.stringify(items||[])]).size;
+    bytes=new Blob([JSON.stringify(diary||{})]).size
+      +new Blob([JSON.stringify(items||[])]).size
+      +new Blob([JSON.stringify(trash||[])]).size;
   }catch(e){ bytes=0; }
   return tasteImages().then(function(images){
     var jobs=[];
@@ -5698,6 +5764,9 @@ document.getElementById('exportBtn').addEventListener('click',async function(){
   var mods=backupModule('buildBackup');
   if(!mods)return;
   var diaryCount=Object.keys(DB).length,list;
+  /* 垃圾桶里那些东西**已经不在日记里**了，所以它们也算「有东西可备份」：
+     只剩垃圾桶时拦着不让导出，等于把最后那点能救的东西关在门里。 */
+  var trashList=TRASH.slice(),trashCount=trashList.length;
   try{ list=await backupTasteList(); }
   catch(err){
     /* 条目元数据就在 localStorage 里，正常不会读不出来；真读不出来就先别导 ——
@@ -5705,18 +5774,19 @@ document.getElementById('exportBtn').addEventListener('click',async function(){
     toast('品味库这次读不出来，先别导出，刷新页面再试');
     return;
   }
-  if(!diaryCount&&!list.length){toast('还没有东西可以备份');return;}
-  var estimate=await estimateBackupBytes(DB,list);
-  var head=diaryCount+' 篇日记、'+list.length+' 条收藏，约 '+mbOf(estimate)+' MB';
+  if(!diaryCount&&!list.length&&!trashCount){toast('还没有东西可以备份');return;}
+  var estimate=await estimateBackupBytes(DB,list,trashList);
+  var tally=diaryCount+' 篇日记、'+list.length+' 条收藏'+(trashCount?'、垃圾桶 '+trashCount+' 篇':'');
+  var head=tally+'，约 '+mbOf(estimate)+' MB';
   /* 导出前先报一次（票 AC7）：这份备份装了什么、大概多重，动手之前就知道。 */
   toast('这次备份有 '+head+'，正在打包…');
   var run=async function(){
     var taste=await hydrateBackupItems(list);
     var text;
-    try{ text=mods.buildBackup(DB,{items:taste.items}); }
+    try{ text=mods.buildBackup(DB,{items:taste.items},trashList); }
     catch(err){ toast('备份没能生成，稍后再试'); return; }
     var bytes=new Blob([text]).size;
-    downloadBackup(text,diaryCount+' 篇日记、'+list.length+' 条收藏，约 '+mbOf(bytes)+' MB'+backupNote(taste));
+    downloadBackup(text,tally+'，约 '+mbOf(bytes)+' MB'+backupNote(taste));
   };
   if(estimate>BACKUP_BIG_BYTES){
     /* 这一档不能只靠 toast：几十 MB 的 JSON 会让主线程僵好几秒，用户得知道
@@ -5763,7 +5833,9 @@ document.getElementById('themeBtn').addEventListener('click',function(){
 })();
 
 /* ================= 导入备份（T9） =================
-   吃两种形状：新格式（{version,diary,taste}）与改造前那种扁平纯日记备份。
+   吃两种形状：新格式（{version,diary,taste,trash}）与改造前那种扁平纯日记备份。
+   新格式里 trash 那一格是后加的（T13）：读到的旧备份没有它，就当空桶，并在
+   toast 里说一句「这份备份里没有垃圾桶」—— 丢的是已经不在日记里的东西，最安静。
    识别规则内聚在 T8 的 parseBackup 里（`kind` 告诉我们是从哪种形状认出来的），这里
    只管按它给的清单落库，并把「从哪儿认出来的」翻成一句人话。
    **不要求先连文件夹**（spec L127 那条刻意的反转）：品味库条目先落成「待落盘」——
@@ -5807,7 +5879,7 @@ async function importBackupText(text){
   try{ parsed=mods.parseBackup(text); }
   catch(err){
     /* 认不出来时说清「哪里认不出来」：parseBackup 抛的 message 已经是人话
-       （「这不是一个能认出来的备份文件：既没有 diary / taste 键，也不像旧版…」），
+       （「这不是一个能认出来的备份文件：既没有 diary / taste / trash 键，也不像旧版…」），
        比笼统的「格式不正确」更可查。 */
     toast((err&&err.message)||'备份文件格式不正确');
     return;
@@ -5815,8 +5887,8 @@ async function importBackupText(text){
   var entries=parsed.entries||[];
   if(!entries.length){toast('文件里没有可导入的内容');return;}
   var d={added:0,skipped:0},t={added:0,skipped:0,failed:0},newTasteIds=[],i,en;
-  /* 先日记、后品味库两趟：日记写的是 localStorage，配额满就得整体中止，
-     不能把品味库灌到一半才发现日记进不去。 */
+  /* 先日记、再品味库、最后垃圾桶，三趟：日记写的是 localStorage，配额满就得整体中止，
+     不能把品味库灌到一半才发现日记进不去；垃圾桶排在日记之后，是因为判重要看 DB。 */
   for(i=0;i<entries.length;i++){
     en=entries[i];
     if(en.dataset!=='diary')continue;
@@ -5844,10 +5916,39 @@ async function importBackupText(text){
       if(r==='added'){t.added++;newTasteIds.push(en.value.id);}else{t.skipped++;}
     }catch(err){ t.failed++; }
   }
+  /* 垃圾桶这一趟排在日记之后：判重要看 DB —— 日记里已经有这一篇，桶里那份就是
+     旧副本，再塞回桶里会让用户以为「删掉的东西又冒出来了」。 */
+  var bucket=[],bucketStat={added:0,skipped:0};
+  for(i=0;i<entries.length;i++){
+    en=entries[i];
+    if(en.dataset!=='trash')continue;
+    var row=en.value;
+    if(DB[en.key]){bucketStat.skipped++;continue;}
+    /* 同一份备份导入两次不该在桶里堆两份：键加删除时间就是这份记录的身份证。
+       比之前先归一化，否则备份行缺 deletedAt 时「存 0、比 undefined」永远不相等，
+       这份备份第二次导入就会再堆一份。 */
+    var at=row.deletedAt||0;
+    var dup=false;
+    for(var q=0;q<TRASH.length;q++){
+      var had=TRASH[q];
+      if(had&&had.key===en.key&&(had.deletedAt||0)===at){dup=true;break;}
+    }
+    if(dup){bucketStat.skipped++;continue;}
+    bucket.push({key:en.key,entry:row.entry,deletedAt:at});
+    bucketStat.added++;
+  }
+  if(bucket.length){
+    /* 桶按删除时间倒序（trashEntry 用 unshift，列表就按数组顺序渲染，新删的在最上）。
+       恢复进来的那几篇可能是别的机器上更晚删的，所以并进来之后重排一次，
+       而不是简单地把它们都塞到最前面。 */
+    TRASH=TRASH.concat(bucket).sort(function(a,b){ return (b.deletedAt||0)-(a.deletedAt||0); });
+    saveTrash();
+    if((location.hash||'').indexOf('trash')>=0)renderTrash();
+  }
   /* 「新增 0、跳过 0」不是一句能糊过去的完成话：一份只有日期键、内容全是空壳的
-     旧备份（或全是已经存在的条目）走完两趟就是这个数 —— 那说明**这个文件里没有
-     可导入的东西**，跟「导入成功了」是两回事。 */
-  if(!d.added&&!d.skipped&&!t.added&&!t.skipped&&!t.failed){
+     旧备份（或全是已经存在的条目）走完三趟就是这个数 —— 那说明**这个文件里没有
+     可导入的东西**，跟「导入成功了」是两回事。垃圾桶那一路也算内容。 */
+  if(!d.added&&!d.skipped&&!t.added&&!t.skipped&&!t.failed&&!bucketStat.added&&!bucketStat.skipped){
     toast('文件里没有可导入的内容');
     return;
   }
@@ -5863,8 +5964,17 @@ async function importBackupText(text){
     if((location.hash||'').indexOf('stats')>=0)renderStats();
   }
   var msg=(parsed.kind==='diary'?'旧版备份，已按日记导入：':'导入完成：')+'新增 '+d.added+' 篇日记、'+t.added+' 条收藏';
-  if(d.skipped+t.skipped)msg+='，跳过已存在 '+(d.skipped+t.skipped)+' 条';
+  /* 跳过数把垃圾桶那一路也算进来：同一份带垃圾桶的备份导入两次是**正常操作**，
+     只报日记与品味库的跳过数、把桶里那两条咽下去，就成了「两套计数口径」。 */
+  var skippedAll=d.skipped+t.skipped+bucketStat.skipped;
+  if(skippedAll)msg+='，跳过已存在 '+skippedAll+' 条';
   if(t.failed)msg+='，'+t.failed+' 条没能读进来';
+  /* 垃圾桶那一格在不在都得说清：用户会以为「导入备份 = 全都回来了」，而这一格
+     不见时丢的是**已经不在日记里**的东西，最不容易被察觉。`hasTrash` 说的是
+     「文件里有没有一个能用的桶」（空桶 `[]` 也算有），所以空桶备份说的是
+     「垃圾桶里没有可恢复的」，而不是冤枉它「这份备份里没有垃圾桶」。 */
+  if(parsed.hasTrash)msg+=bucketStat.added?'，垃圾桶恢复 '+bucketStat.added+' 篇':'，垃圾桶里没有可恢复的';
+  else msg+='；这份备份里没有垃圾桶';
   if(parsed.versionAhead)msg+='（这份备份来自更新的版本）';
   toast(msg);
 }

@@ -87,10 +87,11 @@
 ### 垃圾桶
 
 - 删除的日记先进垃圾桶，可以**还原**、可以**彻底删除**，也可以一键清空
+- 垃圾桶**跟着备份一起走**（连里面的图片），所以清空过浏览器数据之后，导入备份也能把还没彻底删掉的那几篇找回来
 
 ### 数据
 
-- **导出 / 导入 JSON 备份**：一个文件装下**日记与品味库**，缩略图以 base64 内联在同一个文件里（不打包 zip、也没有「是否包含图片」的开关）；导入不要求先连文件夹，没连时条目先标成「待落盘」，连上文件夹后自动补写一轮
+- **导出 / 导入 JSON 备份**：一个文件装下**日记、品味库与垃圾桶**，缩略图与垃圾桶里那篇的原文图片都以 base64 内联在同一个文件里（不打包 zip、也没有「是否包含图片」的开关）；导入不要求先连文件夹，没连时条目先标成「待落盘」，连上文件夹后自动补写一轮；旧版只装日记的备份照样能导入（会说明那份里没有垃圾桶）
 - **本地文件夹同步**（Edge / Chrome）：授权一个文件夹后，每次保存都会顺带写成 `白色相簿日记.json`、按日期分文件的 `日记/YYYY-MM-DD.md`，图片放进 `日记/images/`；品味库写成 `品味库/index.json`（给程序读）与 `品味库/品味库.md`（给人读），缩略图放进 `品味库/images/`。换电脑时把这个文件夹带走即可
 - **夜间模式**
 
@@ -262,10 +263,11 @@ Visually it follows the white-and-ice-blue mood of *WHITE ALBUM 2*, built on the
 ### Trash
 
 - Deleted entries go to the trash first: restore them, delete them for good, or empty the trash at once
+- The trash **travels with your backup** (images included), so after clearing browser data an import still brings back anything you had not deleted for good
 
 ### Your data
 
-- **Export / import a JSON backup**: one file holds **both the diary and the taste library**, with thumbnails inlined as base64 (no zip, no "include images" toggle). Import does not require a connected folder — entries are marked "pending mirror" first and written out automatically once a folder is connected
+- **Export / import a JSON backup**: one file holds **the diary, the taste library and the trash**, with thumbnails and the trashed entries' own images inlined as base64 (no zip, no "include images" toggle). Import does not require a connected folder — entries are marked "pending mirror" first and written out automatically once a folder is connected; older diary-only backups still import (the app says that file has no trash in it)
 - **Folder sync** (Edge / Chrome): pick a local folder once and every save also writes `白色相簿日记.json`, a per-day `日记/YYYY-MM-DD.md`, and images into `日记/images/`; the taste library becomes `品味库/index.json` (for the app) plus `品味库/品味库.md` (readable in any text editor), with thumbnails in `品味库/images/` — carry that folder to another machine and you are done
 - **Dark mode**
 

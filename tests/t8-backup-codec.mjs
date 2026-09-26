@@ -73,6 +73,31 @@ function fullDiary() {
   });
 }
 
+// T13：垃圾桶装的是**整条日记**（连图片的 data URL 一起 —— 它装的东西已经不在
+// 日记里了，备份是这些字节唯一的救命绳），删除时间也一起带走。
+function trashItems() {
+  return [
+    {
+      key: '2024-02-14',
+      entry: {
+        date: '2024-02-14',
+        title: '删掉的那天',
+        content: '这篇被删了',
+        words: 5,
+        tags: ['旧'],
+        images: [{ id: 'img_t1', dataUrl: 'data:image/jpeg;base64,CCCC', name: 't.jpg', addedAt: 1707868800000 }],
+        updatedAt: 1707868800000,
+      },
+      deletedAt: 1707955200000,
+    },
+    {
+      key: '2024-02-15#2',
+      entry: { date: '2024-02-15', content: '', words: 0, images: [], updatedAt: 1707955200000 },
+      deletedAt: 1708041600000,
+    },
+  ];
+}
+
 test('模块交接了 buildBackup 与 parseBackup', () => {
   const M = freshMods();
   assert.ok(M, 'index.html 里没有找到 window.__tasteModules');
@@ -80,31 +105,137 @@ test('模块交接了 buildBackup 与 parseBackup', () => {
   assert.equal(typeof M.parseBackup, 'function', '导出里没有 parseBackup');
 });
 
-test('buildBackup 产出新格式：顶层同时含日记与品味库，并且带版本标记和两个键', () => {
+test('buildBackup 产出新格式：顶层同时含日记、品味库与垃圾桶，并且带版本标记', () => {
   const M = freshMods();
   const diary = fullDiary();
   const taste = { items: tasteItems() };
-  const raw = M.buildBackup(diary, taste);
+  const trash = trashItems();
+  const raw = M.buildBackup(diary, taste, trash);
 
   assert.equal(typeof raw, 'string', '导出的是字符串，落盘/下载都是文本');
   const parsed = JSON.parse(raw);
   assert.equal(typeof parsed.version, 'number', '顶层要有版本标记');
   assert.ok('diary' in parsed, '顶层要有 diary 键');
   assert.ok('taste' in parsed, '顶层要有 taste 键');
+  assert.ok('trash' in parsed, '顶层要有 trash 键（T13）');
   assert.deepEqual(parsed.diary, diary, '日记原样带过去');
   assert.deepEqual(parsed.taste, taste, '品味库原样带过去');
+  assert.deepEqual(parsed.trash, trash, '垃圾桶原样带过去');
 
   const back = M.parseBackup(raw);
   assert.deepEqual(back.diary, diary);
   assert.deepEqual(back.taste, taste);
+  assert.deepEqual(back.trash, trash);
+  assert.equal(back.hasTrash, true);
+});
+
+test('T13 不传垃圾桶时写成空数组而不是缺一格：我们自己导出的文件永远带着这一格', () => {
+  const M = freshMods();
+  const parsed = JSON.parse(M.buildBackup(fullDiary(), { items: tasteItems() }));
+  assert.equal(parsed.version, 2, '形状变过（多了垃圾桶）就要涨版本号');
+  assert.deepEqual(parsed.trash, [], '缺省是空数组 —— 「没有这一格」于是只剩「旧备份」一种解释');
+  assert.equal(M.parseBackup(M.buildBackup(fullDiary(), { items: [] })).hasTrash, true,
+    '空桶也算「文件里有一个能用的桶」：那时该说「垃圾桶里没有可恢复的」，不是「这份备份里没有垃圾桶」');
+
+  const obj = M.buildBackup(fullDiary(), { items: [] }, undefined, { asObject: true });
+  assert.deepEqual(obj.trash, [], 'asObject 那条路同样补齐空数组');
+});
+
+test('T13 写出去的这一侧也不收形状不对的垃圾桶（别无声丢掉一个数据集）', () => {
+  const M = freshMods();
+  for (const bad of ['字符串', {}, 42, { items: [] }]) {
+    assert.throws(() => M.buildBackup(fullDiary(), { items: [] }, bad), /垃圾桶必须是一个数组/,
+      '传 ' + JSON.stringify(bad) + ' 要当场报错，而不是悄悄收成空桶');
+  }
+  assert.deepEqual(JSON.parse(M.buildBackup(fullDiary(), { items: [] }, null)).trash, [], 'null 当没传');
+});
+
+test('T13 垃圾桶跟着备份往返：导入清单里有 trash 那一路，再导出字节一致', () => {
+  const M = freshMods();
+  const diary = fullDiary();
+  const taste = { items: tasteItems() };
+  const trash = trashItems();
+
+  const first = M.buildBackup(diary, taste, trash);
+  const back = M.parseBackup(first);
+  assert.deepEqual(back.trash, trash, '垃圾桶逐字段还原（图片字节与删除时间都不许变）');
+  assert.deepEqual(
+    back.entries.filter((e) => e.dataset === 'trash').map((e) => e.key),
+    ['2024-02-14', '2024-02-15#2'],
+    '垃圾桶也摊平成导入清单，判重键跟日记一样是日期键',
+  );
+  assert.deepEqual(back.entries.filter((e) => e.dataset === 'trash')[0].value, trash[0], 'value 就是那条记录本身');
+
+  const second = M.buildBackup(back.diary, back.taste, back.trash);
+  assert.equal(second, first, '导出 → 导入 → 再导出，字节要一致');
+});
+
+test('T13 旧备份没有垃圾桶那一格：读成空桶，并明确告诉调用方这一格不在', () => {
+  const M = freshMods();
+  const back = M.parseBackup(JSON.stringify({ version: 1, diary: fullDiary(), taste: { items: tasteItems() } }));
+  assert.equal(back.trash, null, '没这一格就给 null，不是空壳');
+  assert.equal(back.hasTrash, false, '要让 T9 能说一句「这份备份里没有垃圾桶」');
+  assert.deepEqual(back.diary, fullDiary(), '旧备份的其余部分照常给，一个字都不许少');
+  assert.deepEqual(back.taste, { items: tasteItems() });
+  assert.equal(back.entries.filter((e) => e.dataset === 'trash').length, 0, '没有它就别产出 trash 行');
+
+  // 明写成 null 也算「这份备份里没有垃圾桶」（跟 diary / taste 的 null 一个意思）
+  const explicit = M.parseBackup({ version: 2, diary: fullDiary(), taste: { items: [] }, trash: null });
+  assert.equal(explicit.hasTrash, false);
+  assert.equal(explicit.trash, null);
+
+  // 改造前那种扁平纯日记备份也没有这一格
+  assert.equal(M.parseBackup(JSON.stringify(legacyDiary())).hasTrash, false);
+});
+
+test('T13 垃圾桶那一格形状不对时当场抛错；桶里的坏行只跳过它自己', () => {
+  const M = freshMods();
+  const bad = [
+    { trash: '字符串' },
+    { trash: {} },
+    { trash: 42 },
+    { version: 2, diary: null, taste: null, trash: { items: [] } },
+  ];
+  for (const payload of bad) {
+    assert.throws(
+      () => M.parseBackup(payload),
+      (err) => err && err.code === 'BACKUP_UNRECOGNIZED',
+      '垃圾桶那一格的形状不对要抛 BACKUP_UNRECOGNIZED：' + JSON.stringify(payload),
+    );
+  }
+
+  // 一行坏掉不该拖垮整份备份（备份是救命绳）：null / 不是对象 / 键不像日记 / 缺 entry 全跳过
+  const messy = M.parseBackup({
+    version: 2,
+    trash: [
+      null,
+      42,
+      { key: '不是日期', entry: { content: 'x' } },
+      { key: '2024-02-14' },
+      { key: '2024-02-14', entry: { content: '好的那行' }, deletedAt: 1 },
+    ],
+  });
+  assert.deepEqual(messy.entries.map((e) => e.dataset + ':' + e.key), ['trash:2024-02-14'], '只收形状完整的那行');
+  assert.equal(messy.trash.length, 5, '桶本身原样给出去：筛行是导入清单的事，不是解码器偷偷删数据');
+});
+
+test('T13 只有垃圾桶的信封也认得出来（手改文件的兜底），kind 报 trashOnly', () => {
+  const M = freshMods();
+  const back = M.parseBackup({ version: 2, trash: trashItems() });
+  assert.equal(back.kind, 'trashOnly');
+  assert.equal(back.diary, null);
+  assert.equal(back.taste, null);
+  assert.deepEqual(back.trash, trashItems());
+  assert.equal(back.entries.length, 2, '只有垃圾桶也要给出可导入的行');
 });
 
 test('buildBackup 也吃对象，parseBackup 也吃对象', () => {
   const M = freshMods();
   const diary = fullDiary();
   const taste = { items: tasteItems() };
-  const built = M.parseBackup(M.buildBackup(diary, taste));
-  const obj = M.buildBackup(diary, taste, { asObject: true });
+  const trash = trashItems();
+  const built = M.parseBackup(M.buildBackup(diary, taste, trash));
+  const obj = M.buildBackup(diary, taste, trash, { asObject: true });
   assert.equal(typeof obj, 'object', 'asObject 要真的给对象');
   assert.deepEqual(M.parseBackup(obj), built);
 });
@@ -113,13 +244,15 @@ test('新的统一格式导出再导入一次，内容一模一样（幂等）',
   const M = freshMods();
   const diary = fullDiary();
   const taste = { items: tasteItems() };
+  const trash = trashItems();
 
-  const first = M.buildBackup(diary, taste);
+  const first = M.buildBackup(diary, taste, trash);
   const back = M.parseBackup(first);
-  const second = M.buildBackup(back.diary, back.taste);
+  const second = M.buildBackup(back.diary, back.taste, back.trash);
 
   assert.deepEqual(back.diary, diary, '日记要逐字段还原');
   assert.deepEqual(back.taste, taste, '品味库要逐字段还原（标签、分类、图片顺序都不许变）');
+  assert.deepEqual(back.trash, trash, '垃圾桶要逐字段还原');
   assert.equal(second, first, '同一份数据导出 → 导入 → 再导出，字节要一致');
 });
 
@@ -282,7 +415,7 @@ test('来自更新版本的备份照样解析，只用 versionAhead 说一声', 
   const current = M.parseBackup({ version: 1, diary: legacyDiary() });
   assert.equal(current.versionAhead, false);
   const missing = M.parseBackup({ diary: legacyDiary() });
-  assert.equal(missing.version, 1, '没有版本号按当前版本算');
+  assert.equal(missing.version, M.BACKUP_VERSION, '没有版本号按当前版本算');
   assert.equal(missing.versionAhead, false);
 });
 
